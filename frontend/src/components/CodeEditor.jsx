@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Editor } from "@monaco-editor/react";
 import LanguageSelector from "./LanguageSelector";
 import { CODE_SNIPPETS } from "../constants/constants";
@@ -13,6 +13,7 @@ const CodeEditor = () => {
   const monacoRef = useRef(null);
   const bindingRef = useRef(null);
   const [language, setLanguage] = useState("javascript");
+  const [isEditorReady, setIsEditorReady] = useState(false);
 
   const { ydoc, provider, connectedPeers, status } = useYjsProvider(
     `call-${callId}-editor`,
@@ -22,10 +23,22 @@ const CodeEditor = () => {
   const onMount = (editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
-    if (!ydoc || !provider) return;
+    setIsEditorReady(true);
+  };
 
+  // Effet séparé pour la liaison Y.js
+  useEffect(() => {
+    if (!isEditorReady || !ydoc || !provider || !editorRef.current) return;
+
+    const editor = editorRef.current;
     const yText = ydoc.getText("monaco");
 
+    // Détruire l'ancienne liaison si elle existe
+    if (bindingRef.current) {
+      bindingRef.current.destroy();
+    }
+
+    // Créer la nouvelle liaison
     const binding = new MonacoBinding(
       yText,
       editor.getModel(),
@@ -34,26 +47,41 @@ const CodeEditor = () => {
     );
     bindingRef.current = binding;
 
+    // Configuration de l'awareness
     provider.awareness.setLocalStateField("user", {
       name: `User-${Math.floor(Math.random() * 1000)}`,
       color: `hsl(${Math.floor(Math.random() * 360)},70%,50%)`,
       cursor: null,
     });
 
+    // Initialiser le contenu seulement si le document est vide
     if (yText.length === 0) {
       const defaultSnippet = CODE_SNIPPETS[language] || "";
       yText.insert(0, defaultSnippet);
     }
 
     editor.focus();
-  };
+
+    return () => {
+      if (bindingRef.current) {
+        bindingRef.current.destroy();
+        bindingRef.current = null;
+      }
+    };
+  }, [isEditorReady, ydoc, provider, language]);
 
   const onSelect = (lang) => {
     setLanguage(lang);
-    if (!ydoc) return;
+    if (!ydoc || !editorRef.current) return;
+    
     const yText = ydoc.getText("monaco");
-    yText.delete(0, yText.length);
-    yText.insert(0, CODE_SNIPPETS[lang] || "");
+    
+    // Remplacer le contenu existant
+    const currentContent = yText.toString();
+    if (currentContent !== CODE_SNIPPETS[lang]) {
+      yText.delete(0, yText.length);
+      yText.insert(0, CODE_SNIPPETS[lang] || "");
+    }
   };
 
   const getStatusColor = (s) =>
@@ -97,6 +125,10 @@ const CodeEditor = () => {
               scrollBeyondLastLine: false,
               renderWhitespace: "selection",
               cursorBlinking: "smooth",
+              // Options pour une meilleure collaboration
+              renderLineHighlight: "gutter",
+              occurrencesHighlight: false,
+              selectionHighlight: false,
             }}
             height="75vh"
             theme="vs-dark"

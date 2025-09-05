@@ -16,17 +16,46 @@ export const useYjsProvider = (roomId, url) => {
 		const provider = new CustomProvider(url, roomId, ydoc);
 		providerRef.current = provider;
 
+		// Fonction pour mettre à jour le nombre de peers
 		const updatePeers = () => {
-			setConnectedPeers(provider.awareness.getStates().size);
+			const states = provider.awareness.getStates();
+			setConnectedPeers(states.size);
 		};
-		provider.awareness.on("update", updatePeers);
+
+		// Écouter les changements d'awareness
+		provider.awareness.on("change", updatePeers);
+
+		// Écouter l'état de connexion WebSocket
+		const checkConnection = () => {
+			if (provider.ws) {
+				switch (provider.ws.readyState) {
+					case WebSocket.CONNECTING:
+						setStatus("connecting");
+						break;
+					case WebSocket.OPEN:
+						setStatus("connected");
+						break;
+					case WebSocket.CLOSING:
+					case WebSocket.CLOSED:
+						setStatus("disconnected");
+						break;
+				}
+			}
+		};
+
+		// Vérifier l'état de connexion périodiquement
+		const intervalId = setInterval(checkConnection, 1000);
+		checkConnection(); // Check initial state
+
+		// Initial peer count
 		updatePeers();
 
-		setStatus("connected");
-
 		return () => {
+			clearInterval(intervalId);
 			provider.destroy();
 			ydoc.destroy();
+			ydocRef.current = null;
+			providerRef.current = null;
 		};
 	}, [roomId, url]);
 
