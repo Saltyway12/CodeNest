@@ -9,13 +9,11 @@ import { WebSocketServer } from "ws";
 import * as Y from "yjs";
 import * as syncProtocol from "y-protocols/sync";
 
-// ... (autres imports et config express restent identiques)
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 const __dirname = path.resolve();
 
-// Middleware et routes (identiques à votre code)
+// Middleware et routes
 app.use(
 	cors({
 		origin: "http://localhost:5173",
@@ -24,16 +22,14 @@ app.use(
 );
 app.use(express.json());
 app.use(cookieParser());
+import authRoutes from "./routes/auth.route.js";
+import userRoutes from "./routes/user.route.js";
+import chatRoutes from "./routes/chat.route.js";
+import { connectDB } from "./lib/db.js";
 
-// Routes API...
-// import authRoutes from "./routes/auth.route.js";
-// import userRoutes from "./routes/user.route.js";
-// import chatRoutes from "./routes/chat.route.js";
-// import { connectDB } from "./lib/db.js";
-
-// app.use("/api/auth", authRoutes);
-// app.use("/api/users", userRoutes);
-// app.use("/api/chat", chatRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/chat", chatRoutes);
 
 const server = http.createServer(app);
 
@@ -257,7 +253,6 @@ setInterval(() => {
 	}
 }, 300000);
 
-// Le reste du code serveur reste identique...
 server.listen(PORT, () => {
 	console.log(`✅ Serveur HTTP + WebSocket Y.js en écoute sur le port ${PORT}`);
 	// connectDB();
