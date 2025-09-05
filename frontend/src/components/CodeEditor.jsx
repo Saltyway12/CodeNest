@@ -5,12 +5,61 @@ import LanguageSelector from "./LanguageSelector";
 import { CODE_SNIPPETS } from "../constants/constants";
 import Output from "./Output";
 import * as Y from "yjs";
-import { WebsocketProvider } from "y-websocket";
 import { MonacoBinding } from "y-monaco";
 import { useParams } from "react-router";
 
+// --------------------
+// Custom Provider pour ton serveur WebSocket
+// --------------------
+class CustomProvider {
+  constructor(doc, url, roomName) {
+    this.ydoc = doc;
+    this.url = url;
+    this.roomName = roomName;
+    this.ws = null;
+    this.awareness = { setLocalStateField: () => {} };
+    this.connect();
+  }
+
+  connect() {
+    this.ws = new WebSocket(`${this.url}?room=${this.roomName}`);
+    this.ws.binaryType = "arraybuffer";
+
+    // Réception des updates du serveur
+    this.ws.onmessage = (event) => {
+      const update = new Uint8Array(event.data);
+      Y.applyUpdate(this.ydoc, update);
+    };
+
+    // Envoi de l'état initial à l'ouverture
+    this.ws.onopen = () => {
+      console.log("CustomProvider connected");
+      const update = Y.encodeStateAsUpdate(this.ydoc);
+      this.ws.send(update);
+    };
+
+    this.ws.onclose = () => {
+      console.log("CustomProvider disconnected");
+    };
+  }
+
+  // Envoyer un update
+  sendUpdate(update) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(update);
+    }
+  }
+
+  destroy() {
+    if (this.ws) this.ws.close();
+  }
+}
+
+// --------------------
+// Composant CodeEditor
+// --------------------
 const CodeEditor = () => {
-  const { id: callId } = useParams(); // récupère l'ID d'appel (=> room Y.js)
+  const { id: callId } = useParams();
   const editorRef = useRef(null);
   const monacoRef = useRef(null);
   const providerRef = useRef(null);
@@ -22,71 +71,63 @@ const CodeEditor = () => {
   const [connectedPeers, setConnectedPeers] = useState(0);
 
   useEffect(() => {
-    // 1. Création du document Y.js (structure partagée)
+    // 1️⃣ Création du document Y.js
     const ydoc = new Y.Doc();
     ydocRef.current = ydoc;
 
-    // 2. Création du provider WebSocket
+    // 2️⃣ Connexion au serveur custom
     const roomName = `call-${callId}-editor`;
     console.log("Connecting to room:", roomName);
 
-    // 👉 ici, on pointe vers ton backend Render qui héberge y-websocket
-    const provider = new WebsocketProvider(
-      "wss://codenest-go66.onrender.com", // ton backend Node sur Render
-      roomName, // identifiant du document/room
-      ydoc
+    const provider = new CustomProvider(
+      "ws://localhost:3000", // ou ton URL Render "wss://codenest-go66.onrender.com"
+      roomName
     );
     providerRef.current = provider;
 
-    // 🔹 Suivi de statut de connexion
-    provider.on("status", (event) => {
-      console.log("WebSocket status:", event.status);
-      setConnectionStatus(event.status);
+    // 3️⃣ Observer les changements locaux et envoyer au serveur
+    const yText = ydoc.getText("monaco");
+    yText.observe(() => {
+      const update = Y.encodeUpdate(ydoc);
+      provider.sendUpdate(update);
     });
 
-    // 🔹 Suivi des peers connectés (approximation)
-    provider.on("sync", (isSynced) => {
-      console.log("Document synced:", isSynced);
-    });
+    setConnectionStatus("connected");
 
     return () => {
       // Nettoyage
-      if (bindingRef.current) {
-        bindingRef.current.destroy();
-        bindingRef.current = null;
-      }
+      if (bindingRef.current) bindingRef.current.destroy();
       provider.destroy();
       ydoc.destroy();
     };
   }, [callId]);
 
-  // 3. Quand Monaco Editor est monté
+  // 4️⃣ Quand Monaco est monté
   const onMount = (editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
 
     const ydoc = ydocRef.current;
-    const provider = providerRef.current;
-    if (!ydoc || !provider) return;
+    if (!ydoc) return;
 
     const yText = ydoc.getText("monaco");
 
-    // Liaison entre Y.Text et Monaco Editor
+    // Liaison Y.Text <-> Monaco
     const binding = new MonacoBinding(
       yText,
       editor.getModel(),
       new Set([editor]),
-      provider.awareness // awareness = gestion des curseurs/présence
+      providerRef.current.awareness
     );
     bindingRef.current = binding;
 
-    // Définir info utilisateur locale (pour curseurs colorés)
-    provider.awareness.setLocalStateField("user", {
+    // Info utilisateur locale
+    providerRef.current.awareness.setLocalStateField("user", {
       name: `User-${Math.floor(Math.random() * 1000)}`,
       color: `hsl(${Math.floor(Math.random() * 360)}, 70%, 50%)`,
     });
 
-    // Si document vide → insérer un snippet par défaut
+    // Insérer snippet si vide
     if (yText.length === 0) {
       const defaultSnippet = CODE_SNIPPETS[language] || "";
       yText.insert(0, defaultSnippet);
@@ -95,10 +136,9 @@ const CodeEditor = () => {
     editor.focus();
   };
 
-  // 4. Changement de langage
+  // 5️⃣ Changement de langage
   const onSelect = (lang) => {
     setLanguage(lang);
-
     const snippet = CODE_SNIPPETS[lang] || "";
     const ydoc = ydocRef.current;
     if (ydoc) {
@@ -108,7 +148,7 @@ const CodeEditor = () => {
     }
   };
 
-  // 5. Helpers pour l’affichage du statut
+  // 6️⃣ Couleurs statut
   const getStatusColor = (status) => {
     switch (status) {
       case "connected":
@@ -146,7 +186,6 @@ const CodeEditor = () => {
             </span>
           </div>
           <div className="text-gray-600 dark:text-gray-400">
-            {/* Ici, connectedPeers est indicatif, tu pourras l'améliorer avec provider.awareness */}
             {connectedPeers} participant
             {connectedPeers !== 1 ? "s" : ""} connecté
             {connectedPeers !== 1 ? "s" : ""}
@@ -156,7 +195,6 @@ const CodeEditor = () => {
       </div>
 
       <div className="flex gap-4">
-        {/* Éditeur */}
         <div className="w-1/2">
           <LanguageSelector language={language} onSelect={onSelect} />
           <Editor
@@ -176,7 +214,6 @@ const CodeEditor = () => {
           />
         </div>
 
-        {/* Output */}
         <Output editorRef={editorRef} language={language} />
       </div>
     </div>

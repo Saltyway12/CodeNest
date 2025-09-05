@@ -4,11 +4,11 @@ import "dotenv/config";
 import cookieParser from "cookie-parser";
 import path from "path";
 import cors from "cors";
-import http from "http"; // 🔹 nécessaire pour combiner HTTP + WS
-import { WebSocketServer } from "ws"; // 🔹 WebSocket natif
-import setupWSConnection from "y-websocket/bin/utils.js"; // 🔹 Y.js utilitaire
+import http from "http";
+import { WebSocketServer } from "ws"; // WebSocket natif
+import * as Y from "yjs"; // Y.js pour les docs partagés
 
-// Routes API existantes
+// Routes API
 import authRoutes from "./routes/auth.route.js";
 import userRoutes from "./routes/user.route.js";
 import chatRoutes from "./routes/chat.route.js";
@@ -18,51 +18,82 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const __dirname = path.resolve();
 
-// 🔹 Middleware CORS : adapte l’origin quand tu passeras en prod
+// Middleware
 app.use(
 	cors({
-		origin: "http://localhost:5173", // 👉 à remplacer par ton frontend en production
+		origin: "http://localhost:5173", // à remplacer par ton frontend prod
 		credentials: true,
 	})
 );
 app.use(express.json());
 app.use(cookieParser());
 
-// 🔹 Routes API classiques
+// Routes API
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/chat", chatRoutes);
 
-// 🔹 Si on est en production → servir le frontend buildé
+// Servir frontend en production
 if (process.env.NODE_ENV === "production") {
 	app.use(express.static(path.join(__dirname, "../frontend/dist")));
 
 	app.get("*", (req, res) => {
-		res.sendFile(path.join(__dirname, "../frontend", "dist", "index.html"));
+		res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
 	});
 }
 
 // --------------------
-// 🔹 Création du serveur HTTP
+// Serveur HTTP
 // --------------------
 const server = http.createServer(app);
 
 // --------------------
-// 🔹 Ajout WebSocket Y.js
+// Serveur WebSocket Y.js
 // --------------------
+const docs = new Map(); // stocke les documents Y.js par "room"
+
 const wss = new WebSocketServer({ server });
 
-// Chaque client WebSocket qui se connecte est pris en charge par Y.js
 wss.on("connection", (ws, req) => {
-	// setupWSConnection lie ce socket à un "document" Y.js partagé
-	// L’URL du client contient le "room name" (= identifiant de doc)
-	setupWSConnection(ws, req);
+	// Exemple simple : on récupère le nom de la room depuis l'URL
+	const url = new URL(req.url, `http://${req.headers.host}`);
+	const roomName = url.searchParams.get("room") || "default";
+
+	// Récupérer ou créer le document Y.js pour cette room
+	let doc = docs.get(roomName);
+	if (!doc) {
+		doc = new Y.Doc();
+		docs.set(roomName, doc);
+	}
+
+	// Écoute des messages du client
+	ws.on("message", (message) => {
+		// Ici tu peux synchroniser doc selon ton protocole
+		// Par exemple avec Y.encodeStateAsUpdate et Y.applyUpdate
+		try {
+			const update = new Uint8Array(message);
+			Y.applyUpdate(doc, update);
+
+			// Broadcast aux autres clients de la même room
+			wss.clients.forEach((client) => {
+				if (client !== ws && client.readyState === ws.OPEN) {
+					client.send(update);
+				}
+			});
+		} catch (err) {
+			console.error("Erreur WebSocket Y.js:", err);
+		}
+	});
+
+	ws.on("close", () => {
+		console.log(`Client déconnecté de la room ${roomName}`);
+	});
 });
 
 // --------------------
-// 🔹 Lancement du serveur
+// Lancement serveur
 // --------------------
 server.listen(PORT, () => {
-	console.log(`✅ Serveur HTTP + Y-WebSocket en écoute sur le port ${PORT}`);
+	console.log(`✅ Serveur HTTP + WebSocket en écoute sur le port ${PORT}`);
 	connectDB();
 });
