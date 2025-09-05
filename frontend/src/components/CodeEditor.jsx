@@ -9,15 +9,27 @@ import { MonacoBinding } from "y-monaco";
 import { useParams } from "react-router";
 
 // --------------------
-// Custom Provider pour ton serveur WebSocket
+// CustomProvider pour backend WebSocket
 // --------------------
 class CustomProvider {
-  constructor(doc, url, roomName) {
-    this.ydoc = doc;
+  constructor(url, roomName, ydoc) {
     this.url = url;
     this.roomName = roomName;
+    this.ydoc = ydoc;
     this.ws = null;
-    this.awareness = { setLocalStateField: () => {} };
+
+    // Simule l’API attendue par MonacoBinding
+    this.awareness = {
+      states: new Map(),
+      setLocalStateField: (field, value) => {
+        this.awareness.states.set(field, value);
+      },
+      on: (event, callback) => {
+        console.log("awareness.on", event);
+      },
+    };
+
+    this.clients = [];
     this.connect();
   }
 
@@ -25,13 +37,11 @@ class CustomProvider {
     this.ws = new WebSocket(`${this.url}?room=${this.roomName}`);
     this.ws.binaryType = "arraybuffer";
 
-    // Réception des updates du serveur
     this.ws.onmessage = (event) => {
       const update = new Uint8Array(event.data);
       Y.applyUpdate(this.ydoc, update);
     };
 
-    // Envoi de l'état initial à l'ouverture
     this.ws.onopen = () => {
       console.log("CustomProvider connected");
       const update = Y.encodeStateAsUpdate(this.ydoc);
@@ -43,7 +53,6 @@ class CustomProvider {
     };
   }
 
-  // Envoyer un update
   sendUpdate(update) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(update);
@@ -75,13 +84,14 @@ const CodeEditor = () => {
     const ydoc = new Y.Doc();
     ydocRef.current = ydoc;
 
-    // 2️⃣ Connexion au serveur custom
     const roomName = `call-${callId}-editor`;
     console.log("Connecting to room:", roomName);
 
+    // 2️⃣ Création du CustomProvider
     const provider = new CustomProvider(
-      "ws://localhost:3000", // ou ton URL Render "wss://codenest-go66.onrender.com"
-      roomName
+      "wss://codenest-go66.onrender.com", // URL de ton backend Render
+      roomName,
+      ydoc
     );
     providerRef.current = provider;
 
@@ -108,7 +118,8 @@ const CodeEditor = () => {
     monacoRef.current = monaco;
 
     const ydoc = ydocRef.current;
-    if (!ydoc) return;
+    const provider = providerRef.current;
+    if (!ydoc || !provider) return;
 
     const yText = ydoc.getText("monaco");
 
@@ -117,12 +128,12 @@ const CodeEditor = () => {
       yText,
       editor.getModel(),
       new Set([editor]),
-      providerRef.current.awareness
+      provider.awareness
     );
     bindingRef.current = binding;
 
     // Info utilisateur locale
-    providerRef.current.awareness.setLocalStateField("user", {
+    provider.awareness.setLocalStateField("user", {
       name: `User-${Math.floor(Math.random() * 1000)}`,
       color: `hsl(${Math.floor(Math.random() * 360)}, 70%, 50%)`,
     });
