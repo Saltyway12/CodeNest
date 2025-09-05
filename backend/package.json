@@ -21,6 +21,7 @@
     "mongoose": "^8.13.2",
     "stream-chat": "^8.60.0",
     "ws": "^8.18.3",
+    "y-protocols": "^1.0.6",
     "yjs": "^13.6.27"
   },
   "devDependencies": {
