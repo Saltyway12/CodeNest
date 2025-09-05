@@ -175,9 +175,11 @@ const CallContent = () => {
         )}
       </div>
 
-      {/* Contrôles d'appel toujours visibles en bas */}
+      {/* ✅ Contrôles d'appel avec StreamTheme */}
       <div className="p-4 bg-gray-800 border-t border-gray-700">
-        <CallControls />
+        <StreamTheme>
+          <CallControls />
+        </StreamTheme>
       </div>
     </div>
   );
