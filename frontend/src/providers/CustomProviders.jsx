@@ -1,4 +1,4 @@
-// CustomProvider.jsx
+// CustomProvider.jsx - Version améliorée pour éviter les conflits
 import * as Y from "yjs";
 import { Awareness } from "y-protocols/awareness";
 import * as awarenessProtocol from "y-protocols/awareness";
@@ -14,9 +14,17 @@ export class CustomProvider {
     this.connected = false;
     this.synced = false;
     
-    // Buffer pour les updates en attente
-    this.updateQueue = [];
+    // File d'attente pour traitement séquentiel des messages
+    this.messageQueue = [];
     this.processingQueue = false;
+    
+    // Système de retry pour les updates échouées
+    this.retryQueue = [];
+    this.maxRetries = 3;
+    
+    // Tracking des updates pour éviter les boucles
+    this.lastSentUpdate = null;
+    this.pendingUpdates = new Set();
 
     this.connect();
     this.setupEventListeners();
@@ -27,61 +35,85 @@ export class CustomProvider {
     this.ws.binaryType = "arraybuffer";
 
     this.ws.onopen = () => {
-      console.log("WebSocket connected");
+      console.log(`🔗 WebSocket connected to room: ${this.roomName}`);
       this.connected = true;
       
-      // Protocole de synchronisation Y.js standard
-      const encoder = syncProtocol.writeVarUint(new syncProtocol.Encoder(), syncProtocol.messageYjsSyncStep1);
-      syncProtocol.writeSyncStep1(encoder, this.ydoc);
-      
-      this.sendMessage({
-        type: "sync-step-1", 
-        stateVector: Array.from(encoder.toUint8Array())
-      });
+      // Demander la synchronisation complète
+      this.requestFullSync();
     };
 
     this.ws.onmessage = (event) => {
-      // Ajouter Ã  la queue pour traitement sÃ©quentiel
-      this.updateQueue.push(event.data);
-      this.processUpdateQueue();
+      // Ajouter à la queue pour traitement séquentiel
+      this.messageQueue.push(event.data);
+      this.processMessageQueue();
     };
 
-    this.ws.onclose = () => {
-      console.log("WebSocket disconnected");
+    this.ws.onclose = (event) => {
+      console.log(`❌ WebSocket disconnected: ${event.code} ${event.reason}`);
       this.connected = false;
       this.synced = false;
       
+      // Reconnexion automatique avec backoff exponentiel
+      const retryDelay = Math.min(1000 * Math.pow(2, this.reconnectAttempts || 0), 30000);
+      this.reconnectAttempts = (this.reconnectAttempts || 0) + 1;
+      
       setTimeout(() => {
         if (!this.connected) {
+          console.log(`🔄 Attempting reconnection... (attempt ${this.reconnectAttempts})`);
           this.connect();
         }
-      }, 3000);
+      }, retryDelay);
     };
 
     this.ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
+      console.error("💥 WebSocket error:", error);
     };
   }
 
-  async processUpdateQueue() {
+  requestFullSync() {
+    // Protocole Y.js standard pour sync step 1
+    const encoder = new syncProtocol.Encoder();
+    syncProtocol.writeVarUint(encoder, syncProtocol.messageYjsSyncStep1);
+    syncProtocol.writeSyncStep1(encoder, this.ydoc);
+    
+    this.sendMessage({
+      type: "sync-step-1", 
+      stateVector: Array.from(encoder.toUint8Array()),
+      timestamp: Date.now()
+    });
+  }
+
+  async processMessageQueue() {
     if (this.processingQueue) return;
     this.processingQueue = true;
 
-    while (this.updateQueue.length > 0) {
-      const data = this.updateQueue.shift();
-      await this.handleMessage(data);
+    try {
+      while (this.messageQueue.length > 0) {
+        const data = this.messageQueue.shift();
+        await this.handleMessage(data);
+        
+        // Petite pause pour éviter de bloquer le thread
+        await new Promise(resolve => setTimeout(resolve, 1));
+      }
+    } catch (error) {
+      console.error("Error processing message queue:", error);
+    } finally {
+      this.processingQueue = false;
     }
-
-    this.processingQueue = false;
   }
 
   async handleMessage(data) {
     try {
       const message = JSON.parse(data.toString());
       
+      // Ignorer nos propres messages si ils reviennent
+      if (message.clientId === this.clientId) {
+        return;
+      }
+      
       switch (message.type) {
         case "sync-step-1": {
-          // RÃ©pondre avec les updates manquants
+          console.log(`📤 Handling sync-step-1 from server`);
           const stateVector = new Uint8Array(message.stateVector);
           const decoder = new syncProtocol.Decoder(stateVector);
           const encoder = new syncProtocol.Encoder();
@@ -93,30 +125,30 @@ export class CustomProvider {
             if (encoder.length > 0) {
               this.sendMessage({
                 type: "sync-step-2",
-                update: Array.from(encoder.toUint8Array())
+                update: Array.from(encoder.toUint8Array()),
+                timestamp: Date.now()
               });
             }
           }
           break;
         }
 
-        case "sync-step-2":
+        case "sync-step-2": {
+          console.log(`📥 Applying sync-step-2 update`);
+          await this.applyUpdate(new Uint8Array(message.update), true);
+          this.synced = true;
+          console.log("✅ Initial sync completed");
+          break;
+        }
+
         case "doc-update": {
-          // Traitement sÃ©curisÃ© des updates
-          const update = new Uint8Array(message.update);
-          
-          // VÃ©rifier que l'update est valide avant de l'appliquer
-          if (this.isValidUpdate(update)) {
-            Y.applyUpdate(this.ydoc, update, this);
-            
-            if (message.type === "sync-step-2") {
-              this.synced = true;
-            }
-          }
+          console.log(`📝 Applying document update`);
+          await this.applyUpdate(new Uint8Array(message.update), false);
           break;
         }
 
         case "awareness-update": {
+          console.log(`👁️ Applying awareness update`);
           const awarenessUpdate = new Uint8Array(message.update);
           awarenessProtocol.applyAwarenessUpdate(
             this.awareness, 
@@ -127,59 +159,164 @@ export class CustomProvider {
         }
 
         default:
-          console.warn("Unknown message type:", message.type);
+          console.warn("⚠️ Unknown message type:", message.type);
       }
-    } catch (e) {
-      console.warn("Error processing message:", e);
+    } catch (error) {
+      console.error("❌ Error processing message:", error);
+      // Tenter de traiter comme update binaire (fallback)
+      await this.handleBinaryMessage(data);
+    }
+  }
+
+  async applyUpdate(update, isSync = false) {
+    try {
+      // Vérifier la validité de l'update avant application
+      if (!this.isValidUpdate(update)) {
+        console.warn("⚠️ Invalid update received, skipping");
+        return;
+      }
+
+      // Créer un hash de l'update pour éviter les doublons
+      const updateHash = this.hashUpdate(update);
+      if (this.pendingUpdates.has(updateHash)) {
+        console.log("🔄 Duplicate update detected, skipping");
+        return;
+      }
+
+      // Marquer comme en cours de traitement
+      this.pendingUpdates.add(updateHash);
+
+      // Appliquer l'update de manière transactionnelle
+      this.ydoc.transact(() => {
+        Y.applyUpdate(this.ydoc, update, this);
+      }, this);
+
+      console.log(`✅ Update applied successfully ${isSync ? '(sync)' : ''}`);
+      
+      // Nettoyer le hash après un délai
+      setTimeout(() => {
+        this.pendingUpdates.delete(updateHash);
+      }, 5000);
+
+    } catch (error) {
+      console.error("❌ Error applying update:", error);
+      this.pendingUpdates.delete(this.hashUpdate(update));
+      throw error;
+    }
+  }
+
+  hashUpdate(update) {
+    // Créer un hash simple de l'update pour détecter les doublons
+    let hash = 0;
+    for (let i = 0; i < update.length; i++) {
+      const char = update[i];
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return hash.toString();
+  }
+
+  async handleBinaryMessage(data) {
+    try {
+      const update = new Uint8Array(data);
+      await this.applyUpdate(update);
+    } catch (error) {
+      console.error("❌ Error processing binary message:", error);
     }
   }
 
   isValidUpdate(update) {
     try {
-      // CrÃ©er un document temporaire pour tester l'update
+      // Test plus robuste de la validité
       const testDoc = new Y.Doc();
+      
+      // Appliquer l'état actuel
       const currentState = Y.encodeStateAsUpdate(this.ydoc);
       Y.applyUpdate(testDoc, currentState);
+      
+      // Tester l'application de la nouvelle update
       Y.applyUpdate(testDoc, update);
       
+      // Vérifier que le document est dans un état cohérent
+      const finalState = Y.encodeStateAsUpdate(testDoc);
+      
       testDoc.destroy();
-      return true;
-    } catch (e) {
-      console.warn("Invalid update detected:", e);
+      return finalState.length > 0;
+    } catch (error) {
+      console.warn("⚠️ Invalid update detected:", error.message);
       return false;
     }
   }
 
   setupEventListeners() {
-    // DÃ©bouncer les updates pour Ã©viter le spam
+    // Générer un ID client unique
+    this.clientId = Math.random().toString(36).substr(2, 9);
+    
+    // Debouncer plus intelligent pour les updates
     let updateTimeout = null;
+    let pendingUpdate = null;
     
     this.ydoc.on("update", (update, origin) => {
-      if (origin !== this && this.connected && this.synced) {
-        // DÃ©bouncer les updates rapides
-        if (updateTimeout) {
-          clearTimeout(updateTimeout);
+      // Ignorer les updates qui viennent de nous-mêmes via le provider
+      if (origin === this) {
+        return;
+      }
+
+      if (!this.connected || !this.synced) {
+        console.log("📦 Queuing update (not connected/synced)");
+        return;
+      }
+
+      // Accumuler les updates pour éviter le spam
+      if (pendingUpdate) {
+        // Merger avec l'update précédente si possible
+        try {
+          const mergedUpdate = Y.mergeUpdates([pendingUpdate, update]);
+          pendingUpdate = mergedUpdate;
+        } catch (error) {
+          // Si merge échoue, utiliser la plus récente
+          pendingUpdate = update;
         }
-        
-        updateTimeout = setTimeout(() => {
+      } else {
+        pendingUpdate = update;
+      }
+
+      // Debouncer l'envoi
+      if (updateTimeout) {
+        clearTimeout(updateTimeout);
+      }
+      
+      updateTimeout = setTimeout(() => {
+        if (pendingUpdate && this.connected && this.synced) {
+          const updateHash = this.hashUpdate(pendingUpdate);
+          
           this.sendMessage({
             type: "doc-update",
-            update: Array.from(update),
-            timestamp: Date.now()
+            update: Array.from(pendingUpdate),
+            timestamp: Date.now(),
+            clientId: this.clientId,
+            hash: updateHash
           });
-        }, 50); // 50ms de dÃ©lai pour grouper les updates
-      }
+          
+          this.lastSentUpdate = updateHash;
+          pendingUpdate = null;
+        }
+      }, 100); // Délai plus long pour grouper efficacement
     });
 
-    // Gestion awareness avec dÃ©bouncing
+    // Awareness avec gestion améliorée
     let awarenessTimeout = null;
     this.awareness.on("update", ({ added, updated, removed }, origin) => {
-      if (origin !== this && this.connected) {
-        if (awarenessTimeout) {
-          clearTimeout(awarenessTimeout);
-        }
-        
-        awarenessTimeout = setTimeout(() => {
+      if (origin === this || !this.connected) {
+        return;
+      }
+      
+      if (awarenessTimeout) {
+        clearTimeout(awarenessTimeout);
+      }
+      
+      awarenessTimeout = setTimeout(() => {
+        try {
           const changedClients = added.concat(updated, removed);
           const awarenessUpdate = awarenessProtocol.encodeAwarenessUpdate(
             this.awareness, 
@@ -188,28 +325,112 @@ export class CustomProvider {
           
           this.sendMessage({
             type: "awareness-update",
-            update: Array.from(awarenessUpdate)
+            update: Array.from(awarenessUpdate),
+            clientId: this.clientId,
+            timestamp: Date.now()
           });
-        }, 100);
+        } catch (error) {
+          console.error("❌ Error sending awareness update:", error);
+        }
+      }, 150);
+    });
+
+    // Cleanup des updates expirées
+    setInterval(() => {
+      this.cleanupPendingUpdates();
+    }, 30000); // Toutes les 30 secondes
+  }
+
+  cleanupPendingUpdates() {
+    const now = Date.now();
+    const expiredHashes = [];
+    
+    this.pendingUpdates.forEach(hash => {
+      // Supprimer les hash de plus de 5 minutes
+      if (typeof hash === 'string' && hash.includes('-')) {
+        const timestamp = parseInt(hash.split('-')[1]);
+        if (now - timestamp > 300000) {
+          expiredHashes.push(hash);
+        }
       }
+    });
+    
+    expiredHashes.forEach(hash => {
+      this.pendingUpdates.delete(hash);
     });
   }
 
   sendMessage(message) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(message));
+      try {
+        this.ws.send(JSON.stringify(message));
+      } catch (error) {
+        console.error("❌ Error sending message:", error);
+        // Ajouter à la queue de retry si nécessaire
+        this.addToRetryQueue(message);
+      }
+    } else {
+      console.log("📦 Queuing message (WebSocket not ready)");
+      this.addToRetryQueue(message);
+    }
+  }
+
+  addToRetryQueue(message) {
+    this.retryQueue.push({
+      message,
+      attempts: 0,
+      timestamp: Date.now()
+    });
+  }
+
+  processRetryQueue() {
+    if (!this.connected) return;
+    
+    const now = Date.now();
+    this.retryQueue = this.retryQueue.filter(item => {
+      // Supprimer les messages trop anciens (> 1 minute)
+      if (now - item.timestamp > 60000) {
+        return false;
+      }
+      
+      if (item.attempts < this.maxRetries) {
+        item.attempts++;
+        this.sendMessage(item.message);
+        return true;
+      }
+      
+      return false;
+    });
+  }
+
+  // Méthode pour forcer une resynchronisation
+  resync() {
+    if (this.connected) {
+      console.log("🔄 Forcing resync...");
+      this.synced = false;
+      this.requestFullSync();
     }
   }
 
   destroy() {
     this.connected = false;
+    
     if (this.awareness) {
       this.awareness.destroy();
     }
+    
     if (this.ws) {
-      this.ws.close();
+      this.ws.close(1000, "Provider destroyed");
     }
+    
+    // Nettoyer les event listeners
     this.ydoc.off("update");
-    this.updateQueue = [];
+    
+    // Vider les queues
+    this.messageQueue = [];
+    this.retryQueue = [];
+    this.pendingUpdates.clear();
+    
+    console.log("🧹 Provider destroyed and cleaned up");
   }
 }
