@@ -1,9 +1,9 @@
 import express from "express";
 import http from "http";
-import path from "path";
-import cookieParser from "cookie-parser";
 import cors from "cors";
-import { fileURLToPath } from "url";
+import cookieParser from "cookie-parser";
+import path from "path";
+import { WebSocketServer } from "ws";
 import * as Y from "yjs";
 import {
 	readSyncMessage,
@@ -15,50 +15,46 @@ import {
 	applyAwarenessUpdate,
 	encodeAwarenessUpdate,
 } from "y-protocols/awareness.js";
-import { WebSocketServer } from "ws";
+import "dotenv/config";
+
+// 🔹 Routes et DB
 import { connectDB } from "./lib/db.js";
-
-// -------------------------
-// Config et Express
-// -------------------------
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
+import authRoutes from "./routes/auth.route.js";
+import userRoutes from "./routes/user.route.js";
+import chatRoutes from "./routes/chat.route.js"; // si tu l’as
+// --------------------
+// CONFIG EXPRESS
+// --------------------
 const app = express();
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 5001;
+const __dirname = path.resolve();
 
-app.use(cors({ origin: "http://localhost:5173", credentials: true }));
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
 
-// -------------------------
-// Routes API
-// -------------------------
-import authRoutes from "./routes/auth.route.js";
-import userRoutes from "./routes/user.route.js";
-import chatRoutes from "./routes/chat.route.js";
-
+// --------------------
+// ROUTES API
+// --------------------
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
-app.use("/api/chat", chatRoutes);
+app.use("/api/chat", chatRoutes || ((req, res) => res.sendStatus(404))); // fallback
+app.get("/api/hello", (req, res) =>
+	res.json({ message: "Hello depuis l'API backend 🚀" })
+);
 
-app.get("/api/hello", (req, res) => {
-	res.json({ message: "Hello depuis l'API backend 🚀" });
-});
-
-// -------------------------
-// Frontend build (React)
-// -------------------------
+// --------------------
+// FRONTEND BUILD
+// --------------------
 const distPath = path.join(__dirname, "../frontend/dist");
 app.use(express.static(distPath));
-
 app.get("*", (req, res) => {
 	res.sendFile(path.join(distPath, "index.html"));
 });
 
-// -------------------------
-// Yjs : stockage en mémoire
-// -------------------------
+// --------------------
+// YJS DOCS EN MÉMOIRE
+// --------------------
 const docs = new Map(); // roomId -> { ydoc, awareness, clients }
 
 function getYDoc(roomId) {
@@ -71,34 +67,33 @@ function getYDoc(roomId) {
 	return docs.get(roomId);
 }
 
-// -------------------------
-// Gestion WebSocket
-// -------------------------
+// --------------------
+// WS SETUP
+// --------------------
 function setupWSConnection(ws, req) {
-	const roomId = req.url.slice(1) || "default"; // /:roomId
+	// url: /room-id
+	const roomId = req.url.slice(1) || "default";
 	const { ydoc, awareness, clients } = getYDoc(roomId);
-
 	clients.add(ws);
 
-	// 1️⃣ Envoyer état initial du document
+	// 1️⃣ sync step 1 → envoyer état initial
 	ws.send(writeSyncStep1(ydoc));
 
-	// 2️⃣ Envoyer état awareness (qui est connecté, curseurs…)
+	// 2️⃣ envoyer awareness
 	ws.send(
 		encodeAwarenessUpdate(awareness, Array.from(awareness.getStates().keys()))
 	);
 
-	// Gestion messages entrants
+	// 3️⃣ messages entrants
 	ws.on("message", (msg) => {
 		const data = new Uint8Array(msg);
-		const messageType = data[0];
+		const type = data[0];
 
-		switch (messageType) {
+		switch (type) {
 			case 0: // sync update
 				readSyncMessage(data, ws, (update) => {
 					Y.applyUpdate(ydoc, update);
-
-					// Broadcast aux autres clients
+					// broadcast aux autres
 					clients.forEach((client) => {
 						if (client !== ws && client.readyState === 1) {
 							client.send(writeUpdate(update));
@@ -106,8 +101,7 @@ function setupWSConnection(ws, req) {
 					});
 				});
 				break;
-
-			case 1: // awareness update
+			case 1: // awareness
 				applyAwarenessUpdate(awareness, data, ws);
 				clients.forEach((client) => {
 					if (client !== ws && client.readyState === 1) {
@@ -115,35 +109,31 @@ function setupWSConnection(ws, req) {
 					}
 				});
 				break;
-
 			default:
-				console.warn("⚠️ Message Yjs inconnu:", messageType);
+				console.warn("⚠️ Message Yjs inconnu:", type);
 		}
 	});
 
 	ws.on("close", () => {
 		clients.delete(ws);
 		awareness.removeAwarenessStates([ws], null);
-
-		if (clients.size === 0) {
-			docs.delete(roomId); // cleanup
-		}
+		if (clients.size === 0) docs.delete(roomId);
 	});
 }
 
-// -------------------------
-// Serveur HTTP + WS
-// -------------------------
+// --------------------
+// CREATION SERVEUR HTTP + WS
+// --------------------
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
+
 wss.on("connection", (ws, req) => setupWSConnection(ws, req));
 
-// -------------------------
-// Lancement serveur avec DB
-// -------------------------
-connectDB().then(() => {
-	server.listen(PORT, () => {
-		console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
-		console.log(`🔗 WebSocket Yjs prêt sur ws://localhost:${PORT}/:roomId`);
-	});
+// --------------------
+// DEMARRAGE
+// --------------------
+server.listen(PORT, "0.0.0.0", async () => {
+	console.log(`🚀 Serveur démarré sur http://0.0.0.0:${PORT}`);
+	console.log(`🔗 WebSocket Yjs prêt sur ws://0.0.0.0:${PORT}/:roomId`);
+	await connectDB();
 });
