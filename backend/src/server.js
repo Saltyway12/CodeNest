@@ -1,4 +1,3 @@
-// src/server.js
 import express from "express";
 import "dotenv/config";
 import cookieParser from "cookie-parser";
@@ -9,29 +8,50 @@ import { WebSocketServer } from "ws";
 import * as Y from "yjs";
 
 // --------------------
+// Routes API
+// --------------------
+import authRoutes from "./routes/auth.route.js";
+import userRoutes from "./routes/user.route.js";
+import chatRoutes from "./routes/chat.route.js";
+
+// --------------------
+// DB
+// --------------------
+import { connectDB } from "./lib/db.js";
+
+// --------------------
 // Config Express & Middleware
 // --------------------
 const app = express();
 const PORT = process.env.PORT || 3000;
 const __dirname = path.resolve();
 
-// CORS pour frontend en dev
 app.use(
 	cors({
 		origin: "http://localhost:5173", // changer si frontend sur autre domaine
 		credentials: true,
 	})
 );
-
 app.use(express.json());
 app.use(cookieParser());
 
 // --------------------
-// API Routes simples (exemple)
+// Routes API
 // --------------------
-app.get("/health", (req, res) => {
-	res.json({ status: "healthy", timestamp: new Date().toISOString() });
-});
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/chat", chatRoutes);
+
+// --------------------
+// Servir frontend en production
+// --------------------
+if (process.env.NODE_ENV === "production") {
+	app.use(express.static(path.join(__dirname, "../frontend/dist")));
+
+	app.get("*", (req, res) => {
+		res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
+	});
+}
 
 // --------------------
 // Serveur HTTP + WebSocket
@@ -44,16 +64,12 @@ const wss = new WebSocketServer({ server });
 // --------------------
 const rooms = new Map();
 
-/**
- * Récupère ou crée une room Yjs
- * @param {string} roomName
- */
 function getRoom(roomName) {
 	if (!rooms.has(roomName)) {
 		rooms.set(roomName, {
-			doc: new Y.Doc(), // document Yjs partagé
-			clients: new Set(), // clients connectés
-			lastUpdate: Date.now(), // timestamp dernière activité
+			doc: new Y.Doc(),
+			clients: new Set(),
+			lastUpdate: Date.now(),
 		});
 		console.log(`🏠 New room created: ${roomName}`);
 	}
@@ -62,9 +78,6 @@ function getRoom(roomName) {
 	return room;
 }
 
-/**
- * Broadcast d'un message à tous les clients sauf l'expéditeur
- */
 function broadcast(room, sender, data) {
 	room.clients.forEach((client) => {
 		if (client !== sender && client.readyState === client.OPEN) {
@@ -74,7 +87,7 @@ function broadcast(room, sender, data) {
 }
 
 // --------------------
-// Gestion des connexions WebSocket
+// WebSocket
 // --------------------
 wss.on("connection", (ws, req) => {
 	const url = new URL(req.url, `http://${req.headers.host}`);
@@ -100,14 +113,13 @@ wss.on("connection", (ws, req) => {
 		);
 	}
 
-	// Gestion des messages entrants
+	// Messages entrants
 	ws.on("message", (data) => {
 		try {
 			const message = JSON.parse(data.toString());
 
 			switch (message.type) {
 				case "sync-step-1": {
-					// Le client nous envoie son stateVector, on lui renvoie la différence
 					const stateVector = new Uint8Array(message.stateVector);
 					const update = Y.encodeStateAsUpdate(room.doc, stateVector);
 					if (update.length > 0 && ws.readyState === ws.OPEN) {
@@ -120,28 +132,22 @@ wss.on("connection", (ws, req) => {
 					}
 					break;
 				}
-
 				case "doc-update": {
-					// Le client nous envoie un update Yjs
 					const update = new Uint8Array(message.update);
 					try {
 						room.doc.transact(() => {
 							Y.applyUpdate(room.doc, update);
 						});
-						// Propagation aux autres clients
 						broadcast(room, ws, JSON.stringify(message));
 					} catch (err) {
 						console.error("❌ Error applying update:", err);
 					}
 					break;
 				}
-
 				case "awareness-update": {
-					// Propager awareness (curseurs, couleurs, etc.)
 					broadcast(room, ws, JSON.stringify(message));
 					break;
 				}
-
 				default:
 					console.warn("⚠️ Unknown message type:", message.type);
 			}
@@ -153,7 +159,6 @@ wss.on("connection", (ws, req) => {
 	ws.on("close", () => {
 		room.clients.delete(ws);
 		console.log(`❌ Client ${ws.clientId} disconnected from room ${roomName}`);
-		// Supprime room si vide
 		if (room.clients.size === 0) {
 			setTimeout(() => {
 				const r = rooms.get(roomName);
@@ -161,7 +166,7 @@ wss.on("connection", (ws, req) => {
 					rooms.delete(roomName);
 					console.log(`🧹 Room ${roomName} cleaned (empty)`);
 				}
-			}, 5 * 60 * 1000); // 5 minutes
+			}, 5 * 60 * 1000);
 		}
 	});
 
@@ -175,6 +180,7 @@ wss.on("connection", (ws, req) => {
 // Lancement serveur
 // --------------------
 server.listen(PORT, () => {
-	console.log(`🚀 Server running on http://localhost:${PORT}`);
+	console.log(`🚀 Backend running on http://localhost:${PORT}`);
 	console.log(`🔌 WebSocket endpoint: ws://localhost:${PORT}?room=<room-name>`);
+	connectDB();
 });
