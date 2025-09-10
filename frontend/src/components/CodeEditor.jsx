@@ -15,6 +15,7 @@ const CodeEditor = () => {
 
   const [language, setLanguage] = useState("javascript");
   const [isEditorReady, setIsEditorReady] = useState(false);
+  const [users, setUsers] = useState([]);
 
   // ✅ Connexion Yjs via hook
   const { ydoc, provider, connectedPeers, status } = useYjsProvider(
@@ -22,6 +23,7 @@ const CodeEditor = () => {
     "wss://codenest-go66.onrender.com"
   );
 
+  // Quand Monaco est monté
   const onMount = (editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
@@ -33,9 +35,10 @@ const CodeEditor = () => {
     if (!isEditorReady || !ydoc || !provider || !editorRef.current) return;
 
     const editor = editorRef.current;
+    const monaco = monacoRef.current;
     const yText = ydoc.getText("monaco");
 
-    // Détruire l'ancienne liaison si elle existe
+    // Détruire l’ancienne liaison
     if (bindingRef.current) {
       bindingRef.current.destroy();
     }
@@ -49,44 +52,81 @@ const CodeEditor = () => {
     );
     bindingRef.current = binding;
 
-    // Configurer l’état "local" pour awareness
-    provider.awareness.setLocalStateField("user", {
-      name: `User-${Math.floor(Math.random() * 1000)}`,
-      color: `hsl(${Math.floor(Math.random() * 360)},70%,50%)`,
+    // Configurer l’état local pour awareness
+    provider.awareness.setLocalState({
+      user: {
+        id: Math.random().toString(36).substring(2, 9),
+        name: `User-${Math.floor(Math.random() * 1000)}`,
+        color: `hsl(${Math.floor(Math.random() * 360)},70%,50%)`,
+      },
       cursor: null,
     });
 
-    // Initialiser le contenu seulement si le doc est vide
+    // Initialiser le contenu seulement si vide
     if (yText.length === 0) {
-      const defaultSnippet = CODE_SNIPPETS[language] || "";
-      yText.insert(0, defaultSnippet);
+      ydoc.transact(() => {
+        yText.insert(0, CODE_SNIPPETS[language] || "");
+      });
     }
 
     editor.focus();
 
-    // 🔄 Cleanup
+    // Nettoyage à la destruction
     return () => {
       if (bindingRef.current) {
         bindingRef.current.destroy();
         bindingRef.current = null;
       }
-      // Important pour éviter les "ghost cursors"
       provider.awareness.setLocalState(null);
     };
   }, [isEditorReady, ydoc, provider]);
 
-  // ✅ Changement de langage → remplacer le code
+  // ✅ Cleanup awareness quand on ferme l’onglet
+  useEffect(() => {
+    if (!provider) return;
+    const handleUnload = () => {
+      provider.awareness.setLocalState(null);
+    };
+    window.addEventListener("beforeunload", handleUnload);
+    return () => window.removeEventListener("beforeunload", handleUnload);
+  }, [provider]);
+
+  // ✅ Suivre les participants connectés
+  useEffect(() => {
+    if (!provider) return;
+    const updateUsers = () => {
+      const states = Array.from(provider.awareness.getStates().values());
+      setUsers(states.map((s) => s.user).filter(Boolean));
+    };
+    provider.awareness.on("change", updateUsers);
+    updateUsers();
+    return () => provider.awareness.off("change", updateUsers);
+  }, [provider]);
+
+  // ✅ Changement de langage → recréer un modèle Monaco
   const onSelect = (lang) => {
     setLanguage(lang);
-    if (!ydoc || !editorRef.current) return;
+    if (!ydoc || !editorRef.current || !monacoRef.current || !provider) return;
 
     const yText = ydoc.getText("monaco");
     const newSnippet = CODE_SNIPPETS[lang] || "";
 
-    if (yText.toString() !== newSnippet) {
-      yText.delete(0, yText.length);
-      yText.insert(0, newSnippet);
+    const monaco = monacoRef.current;
+    const editor = editorRef.current;
+
+    const newModel = monaco.editor.createModel(newSnippet, lang);
+    editor.setModel(newModel);
+
+    // Réattacher le binding
+    if (bindingRef.current) {
+      bindingRef.current.destroy();
     }
+    bindingRef.current = new MonacoBinding(
+      yText,
+      newModel,
+      new Set([editor]),
+      provider.awareness
+    );
   };
 
   const getStatusColor = (s) =>
@@ -124,6 +164,19 @@ const CodeEditor = () => {
         <div className="text-gray-500 text-xs">Room: {callId}</div>
       </div>
 
+      {/* Liste des participants */}
+      <div className="mb-4 flex flex-wrap gap-2">
+        {users.map((u) => (
+          <span
+            key={u.id}
+            className="px-2 py-1 rounded text-xs font-medium"
+            style={{ backgroundColor: u.color, color: "#fff" }}
+          >
+            {u.name}
+          </span>
+        ))}
+      </div>
+
       {/* Layout */}
       <div className="flex gap-4">
         <div className="w-1/2">
@@ -137,7 +190,7 @@ const CodeEditor = () => {
               scrollBeyondLastLine: false,
               renderWhitespace: "selection",
               cursorBlinking: "smooth",
-              renderLineHighlight: "gutter", // aide la collab
+              renderLineHighlight: "gutter",
               occurrencesHighlight: false,
               selectionHighlight: false,
             }}
