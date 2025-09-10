@@ -48,8 +48,8 @@ if (process.env.MONGO_URI) {
 // -----------------------------------------------------------------------------
 // ROUTES API EXISTANTES
 // -----------------------------------------------------------------------------
-import authRoutes from "./routes/auth.js";
-import userRoutes from "./routes/user.js";
+import authRoutes from "./routes/auth.route.js";
+import userRoutes from "./routes/user.route.js";
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
