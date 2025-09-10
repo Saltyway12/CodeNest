@@ -9,7 +9,6 @@ import * as Y from "yjs";
 import {
 	readSyncMessage,
 	writeSyncStep1,
-	writeSyncStep2,
 	writeUpdate,
 } from "y-protocols/sync.js";
 import {
@@ -17,7 +16,6 @@ import {
 	applyAwarenessUpdate,
 	encodeAwarenessUpdate,
 } from "y-protocols/awareness.js";
-import { encodeStateAsUpdate, applyUpdate } from "yjs";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -31,6 +29,9 @@ const PORT = process.env.PORT || 3000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// -----------------------------------------------------------------------------
+// MIDDLEWARE
+// -----------------------------------------------------------------------------
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
@@ -46,24 +47,27 @@ if (process.env.MONGO_URI) {
 }
 
 // -----------------------------------------------------------------------------
-// ROUTES API EXISTANTES
+// ROUTES API (EXISTANTES)
 // -----------------------------------------------------------------------------
 import authRoutes from "./routes/auth.route.js";
 import userRoutes from "./routes/user.route.js";
+import chatRoutes from "./routes/chat.route.js";
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/chat", chatRoutes);
 
 app.get("/api/hello", (req, res) => {
 	res.json({ message: "Hello depuis l'API backend 🚀" });
 });
 
 // -----------------------------------------------------------------------------
-// FRONTEND BUILD (Vite React)
+// FRONTEND BUILD (VITE REACT)
 // -----------------------------------------------------------------------------
 const distPath = path.join(__dirname, "../frontend/dist");
 app.use(express.static(distPath));
 
+// Serve index.html pour toutes les routes non-API
 app.get("*", (req, res) => {
 	res.sendFile(path.join(distPath, "index.html"));
 });
@@ -84,18 +88,20 @@ function getYDoc(roomId) {
 }
 
 // -----------------------------------------------------------------------------
-// REIMPLEMENTATION setupWSConnection
+// GESTION DES CONNEXIONS WEBSOCKET
 // -----------------------------------------------------------------------------
 function setupWSConnection(ws, req) {
-	const roomId = req.url.slice(1) || "default";
+	const url = new URL(req.url, `http://${req.headers.host}`);
+	const roomId = url.searchParams.get("room") || "default";
+
 	const { ydoc, awareness, clients } = getYDoc(roomId);
 
 	clients.add(ws);
 
-	// 1️⃣ Envoi de l’état initial (sync protocole)
+	// 1️⃣ Envoi de l’état initial du doc
 	ws.send(writeSyncStep1(ydoc));
 
-	// 2️⃣ Envoi de l’état awareness (qui est connecté ? curseurs ?)
+	// 2️⃣ Envoi des états awareness (qui est connecté ? curseurs ?)
 	ws.send(
 		encodeAwarenessUpdate(awareness, Array.from(awareness.getStates().keys()))
 	);
@@ -104,14 +110,15 @@ function setupWSConnection(ws, req) {
 	ws.on("message", (msg) => {
 		const data = new Uint8Array(msg);
 
-		// On lit le premier byte → type de message
 		const messageType = data[0];
 
 		switch (messageType) {
-			case 0: // sync step 1/2/update
+			case 0: // sync message
 				readSyncMessage(data, ws, (update) => {
-					applyUpdate(ydoc, update);
-					// Broadcast aux autres clients
+					// Appliquer l'update transactionnellement
+					Y.applyUpdate(ydoc, update);
+
+					// Broadcast à tous les autres clients
 					clients.forEach((client) => {
 						if (client !== ws && client.readyState === 1) {
 							client.send(writeUpdate(update));
@@ -134,18 +141,20 @@ function setupWSConnection(ws, req) {
 		}
 	});
 
+	// Déconnexion
 	ws.on("close", () => {
 		clients.delete(ws);
 		awareness.removeAwarenessStates([ws], null);
 
+		// Supprime la room si vide
 		if (clients.size === 0) {
-			docs.delete(roomId); // cleanup
+			docs.delete(roomId);
 		}
 	});
 }
 
 // -----------------------------------------------------------------------------
-// CREATION DU SERVEUR HTTP + WS
+// SERVEUR HTTP + WEBSOCKET
 // -----------------------------------------------------------------------------
 const server = http.createServer(app);
 
@@ -157,5 +166,7 @@ wss.on("connection", (ws, req) => setupWSConnection(ws, req));
 // -----------------------------------------------------------------------------
 server.listen(PORT, () => {
 	console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
-	console.log(`🔗 WebSocket Yjs prêt sur ws://localhost:${PORT}/:roomId`);
+	console.log(
+		`🔗 WebSocket Yjs prêt sur ws://localhost:${PORT}/?room=<roomId>`
+	);
 });
