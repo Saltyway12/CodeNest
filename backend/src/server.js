@@ -1,10 +1,9 @@
 import express from "express";
 import http from "http";
-import mongoose from "mongoose";
-import dotenv from "dotenv";
-import cors from "cors";
+import path from "path";
 import cookieParser from "cookie-parser";
-import { WebSocketServer } from "ws";
+import cors from "cors";
+import { fileURLToPath } from "url";
 import * as Y from "yjs";
 import {
 	readSyncMessage,
@@ -16,39 +15,25 @@ import {
 	applyAwarenessUpdate,
 	encodeAwarenessUpdate,
 } from "y-protocols/awareness.js";
-import path from "path";
-import { fileURLToPath } from "url";
+import { WebSocketServer } from "ws";
+import { connectDB } from "./lib/db.js";
 
-// -----------------------------------------------------------------------------
-// CONFIG
-// -----------------------------------------------------------------------------
-dotenv.config();
-const app = express();
-const PORT = process.env.PORT || 3000;
-
+// -------------------------
+// Config et Express
+// -------------------------
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// -----------------------------------------------------------------------------
-// MIDDLEWARE
-// -----------------------------------------------------------------------------
-app.use(cors({ origin: true, credentials: true }));
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(cors({ origin: "http://localhost:5173", credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
 
-// -----------------------------------------------------------------------------
-// DATABASE
-// -----------------------------------------------------------------------------
-if (process.env.MONGO_URI) {
-	mongoose
-		.connect(process.env.MONGO_URI)
-		.then(() => console.log("✅ MongoDB connecté"))
-		.catch((err) => console.error("❌ Erreur MongoDB:", err));
-}
-
-// -----------------------------------------------------------------------------
-// ROUTES API (EXISTANTES)
-// -----------------------------------------------------------------------------
+// -------------------------
+// Routes API
+// -------------------------
 import authRoutes from "./routes/auth.route.js";
 import userRoutes from "./routes/user.route.js";
 import chatRoutes from "./routes/chat.route.js";
@@ -61,20 +46,19 @@ app.get("/api/hello", (req, res) => {
 	res.json({ message: "Hello depuis l'API backend 🚀" });
 });
 
-// -----------------------------------------------------------------------------
-// FRONTEND BUILD (VITE REACT)
-// -----------------------------------------------------------------------------
+// -------------------------
+// Frontend build (React)
+// -------------------------
 const distPath = path.join(__dirname, "../frontend/dist");
 app.use(express.static(distPath));
 
-// Serve index.html pour toutes les routes non-API
 app.get("*", (req, res) => {
 	res.sendFile(path.join(distPath, "index.html"));
 });
 
-// -----------------------------------------------------------------------------
-// YJS DOCS EN MÉMOIRE
-// -----------------------------------------------------------------------------
+// -------------------------
+// Yjs : stockage en mémoire
+// -------------------------
 const docs = new Map(); // roomId -> { ydoc, awareness, clients }
 
 function getYDoc(roomId) {
@@ -87,38 +71,34 @@ function getYDoc(roomId) {
 	return docs.get(roomId);
 }
 
-// -----------------------------------------------------------------------------
-// GESTION DES CONNEXIONS WEBSOCKET
-// -----------------------------------------------------------------------------
+// -------------------------
+// Gestion WebSocket
+// -------------------------
 function setupWSConnection(ws, req) {
-	const url = new URL(req.url, `http://${req.headers.host}`);
-	const roomId = url.searchParams.get("room") || "default";
-
+	const roomId = req.url.slice(1) || "default"; // /:roomId
 	const { ydoc, awareness, clients } = getYDoc(roomId);
 
 	clients.add(ws);
 
-	// 1️⃣ Envoi de l’état initial du doc
+	// 1️⃣ Envoyer état initial du document
 	ws.send(writeSyncStep1(ydoc));
 
-	// 2️⃣ Envoi des états awareness (qui est connecté ? curseurs ?)
+	// 2️⃣ Envoyer état awareness (qui est connecté, curseurs…)
 	ws.send(
 		encodeAwarenessUpdate(awareness, Array.from(awareness.getStates().keys()))
 	);
 
-	// Gestion des messages entrants
+	// Gestion messages entrants
 	ws.on("message", (msg) => {
 		const data = new Uint8Array(msg);
-
 		const messageType = data[0];
 
 		switch (messageType) {
-			case 0: // sync message
+			case 0: // sync update
 				readSyncMessage(data, ws, (update) => {
-					// Appliquer l'update transactionnellement
 					Y.applyUpdate(ydoc, update);
 
-					// Broadcast à tous les autres clients
+					// Broadcast aux autres clients
 					clients.forEach((client) => {
 						if (client !== ws && client.readyState === 1) {
 							client.send(writeUpdate(update));
@@ -141,32 +121,29 @@ function setupWSConnection(ws, req) {
 		}
 	});
 
-	// Déconnexion
 	ws.on("close", () => {
 		clients.delete(ws);
 		awareness.removeAwarenessStates([ws], null);
 
-		// Supprime la room si vide
 		if (clients.size === 0) {
-			docs.delete(roomId);
+			docs.delete(roomId); // cleanup
 		}
 	});
 }
 
-// -----------------------------------------------------------------------------
-// SERVEUR HTTP + WEBSOCKET
-// -----------------------------------------------------------------------------
+// -------------------------
+// Serveur HTTP + WS
+// -------------------------
 const server = http.createServer(app);
-
 const wss = new WebSocketServer({ server });
 wss.on("connection", (ws, req) => setupWSConnection(ws, req));
 
-// -----------------------------------------------------------------------------
-// START
-// -----------------------------------------------------------------------------
-server.listen(PORT, () => {
-	console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
-	console.log(
-		`🔗 WebSocket Yjs prêt sur ws://localhost:${PORT}/?room=<roomId>`
-	);
+// -------------------------
+// Lancement serveur avec DB
+// -------------------------
+connectDB().then(() => {
+	server.listen(PORT, () => {
+		console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
+		console.log(`🔗 WebSocket Yjs prêt sur ws://localhost:${PORT}/:roomId`);
+	});
 });
