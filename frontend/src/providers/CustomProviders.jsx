@@ -106,7 +106,6 @@ export class CustomProvider {
     try {
       const message = JSON.parse(data.toString());
       
-      // Ignorer nos propres messages si ils reviennent
       if (message.clientId === this.clientId) {
         return;
       }
