@@ -10,68 +10,60 @@ import { useYjsProvider } from "../hooks/useYjsProvider";
 const CodeEditor = () => {
   const { id: callId } = useParams();
   const editorRef = useRef(null);
-  const monacoRef = useRef(null);
   const bindingRef = useRef(null);
 
   const [language, setLanguage] = useState("javascript");
   const [isEditorReady, setIsEditorReady] = useState(false);
-  const [users, setUsers] = useState([]);
 
-  // ✅ Connexion Yjs via hook
+  // Connexion Yjs via hook
   const { ydoc, provider, connectedPeers, status } = useYjsProvider(
     `call-${callId}-editor`,
     "wss://codenest-go66.onrender.com"
   );
 
-  // Quand Monaco est monté
-  const onMount = (editor, monaco) => {
+  // Quand Monaco est prêt
+  const onMount = (editor) => {
     editorRef.current = editor;
-    monacoRef.current = monaco;
     setIsEditorReady(true);
   };
 
-  // ✅ Lier Monaco ↔️ Yjs
+  // Lier Monaco <-> Yjs
   useEffect(() => {
     if (!isEditorReady || !ydoc || !provider || !editorRef.current) return;
 
     const editor = editorRef.current;
-    const monaco = monacoRef.current;
+    const model = editor.getModel();
     const yText = ydoc.getText("monaco");
 
-    // Détruire l’ancienne liaison
+    // Détruire l'ancienne liaison si elle existe
     if (bindingRef.current) {
       bindingRef.current.destroy();
     }
 
-    // Créer la liaison collaborative
+    // Créer une nouvelle liaison
     const binding = new MonacoBinding(
       yText,
-      editor.getModel(),
+      model,
       new Set([editor]),
       provider.awareness
     );
     bindingRef.current = binding;
 
     // Configurer l’état local pour awareness
-    provider.awareness.setLocalState({
-      user: {
-        id: Math.random().toString(36).substring(2, 9),
-        name: `User-${Math.floor(Math.random() * 1000)}`,
-        color: `hsl(${Math.floor(Math.random() * 360)},70%,50%)`,
-      },
+    provider.awareness.setLocalStateField("user", {
+      name: `User-${Math.floor(Math.random() * 1000)}`,
+      color: `hsl(${Math.floor(Math.random() * 360)},70%,50%)`,
       cursor: null,
     });
 
-    // Initialiser le contenu seulement si vide
+    // Si le doc est vide → injecter le snippet par défaut
     if (yText.length === 0) {
-      ydoc.transact(() => {
-        yText.insert(0, CODE_SNIPPETS[language] || "");
-      });
+      yText.insert(0, CODE_SNIPPETS[language] || "");
     }
 
     editor.focus();
 
-    // Nettoyage à la destruction
+    // Cleanup
     return () => {
       if (bindingRef.current) {
         bindingRef.current.destroy();
@@ -81,52 +73,17 @@ const CodeEditor = () => {
     };
   }, [isEditorReady, ydoc, provider]);
 
-  // ✅ Cleanup awareness quand on ferme l’onglet
-  useEffect(() => {
-    if (!provider) return;
-    const handleUnload = () => {
-      provider.awareness.setLocalState(null);
-    };
-    window.addEventListener("beforeunload", handleUnload);
-    return () => window.removeEventListener("beforeunload", handleUnload);
-  }, [provider]);
-
-  // ✅ Suivre les participants connectés
-  useEffect(() => {
-    if (!provider) return;
-    const updateUsers = () => {
-      const states = Array.from(provider.awareness.getStates().values());
-      setUsers(states.map((s) => s.user).filter(Boolean));
-    };
-    provider.awareness.on("change", updateUsers);
-    updateUsers();
-    return () => provider.awareness.off("change", updateUsers);
-  }, [provider]);
-
-  // ✅ Changement de langage → recréer un modèle Monaco
+  // Quand on change de langage → remplacer le contenu via Yjs
   const onSelect = (lang) => {
     setLanguage(lang);
-    if (!ydoc || !editorRef.current || !monacoRef.current || !provider) return;
+    if (!ydoc) return;
 
     const yText = ydoc.getText("monaco");
     const newSnippet = CODE_SNIPPETS[lang] || "";
 
-    const monaco = monacoRef.current;
-    const editor = editorRef.current;
-
-    const newModel = monaco.editor.createModel(newSnippet, lang);
-    editor.setModel(newModel);
-
-    // Réattacher le binding
-    if (bindingRef.current) {
-      bindingRef.current.destroy();
-    }
-    bindingRef.current = new MonacoBinding(
-      yText,
-      newModel,
-      new Set([editor]),
-      provider.awareness
-    );
+    // Important : uniquement via yText (pas editor.setValue)
+    yText.delete(0, yText.length);
+    yText.insert(0, newSnippet);
   };
 
   const getStatusColor = (s) =>
@@ -162,19 +119,6 @@ const CodeEditor = () => {
           </div>
         </div>
         <div className="text-gray-500 text-xs">Room: {callId}</div>
-      </div>
-
-      {/* Liste des participants */}
-      <div className="mb-4 flex flex-wrap gap-2">
-        {users.map((u) => (
-          <span
-            key={u.id}
-            className="px-2 py-1 rounded text-xs font-medium"
-            style={{ backgroundColor: u.color, color: "#fff" }}
-          >
-            {u.name}
-          </span>
-        ))}
       </div>
 
       {/* Layout */}
