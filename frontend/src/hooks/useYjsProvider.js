@@ -1,63 +1,54 @@
-// useYjsProvider.js
 import { useEffect, useRef, useState } from "react";
 import * as Y from "yjs";
-import { CustomProvider } from "../providers/CustomProviders";
+import { WebsocketProvider } from "y-websocket";
 
+/**
+ * Hook React pour connecter un document Y.js à un serveur WebSocket collaboratif.
+ *
+ * @param {string} roomId - Identifiant de la "room" partagée entre clients.
+ * @param {string} url - URL du serveur WebSocket (ex: "ws://localhost:1234").
+ * @returns {{
+ *   ydoc: Y.Doc | null,
+ *   provider: WebsocketProvider | null,
+ *   connectedPeers: number,
+ *   status: "connecting" | "connected" | "disconnected"
+ * }}
+ */
 export const useYjsProvider = (roomId, url) => {
-	const ydocRef = useRef(null);
-	const providerRef = useRef(null);
-	const [connectedPeers, setConnectedPeers] = useState(0);
-	const [status, setStatus] = useState("connecting");
+	const ydocRef = useRef(null); // Stocke le document Y.js
+	const providerRef = useRef(null); // Stocke le provider WebSocket
+	const [connectedPeers, setConnectedPeers] = useState(0); // Nombre de pairs connectés
+	const [status, setStatus] = useState("connecting"); // État de la connexion
 
 	useEffect(() => {
+		// 1️⃣ Créer un nouveau document Y.js (structure CRDT partagée)
 		const ydoc = new Y.Doc();
 		ydocRef.current = ydoc;
 
-		const provider = new CustomProvider(url, roomId, ydoc);
+		// 2️⃣ Connecter le document au serveur WebSocket
+		const provider = new WebsocketProvider(url, roomId, ydoc);
 		providerRef.current = provider;
 
-		// Fonction pour mettre à jour le nombre de peers
+		// 3️⃣ Écouter les changements de statut ("connected" / "disconnected")
+		provider.on("status", ({ status }) => {
+			setStatus(status);
+		});
+
+		// 4️⃣ Mettre à jour le nombre de pairs connectés via awareness
 		const updatePeers = () => {
-			const states = provider.awareness.getStates();
-			setConnectedPeers(states.size);
+			setConnectedPeers(provider.awareness.getStates().size);
 		};
-
-		// Écouter les changements d'awareness
 		provider.awareness.on("change", updatePeers);
+		updatePeers(); // mise à jour initiale
 
-		// Écouter l'état de connexion WebSocket
-		const checkConnection = () => {
-			if (provider.ws) {
-				switch (provider.ws.readyState) {
-					case WebSocket.CONNECTING:
-						setStatus("connecting");
-						break;
-					case WebSocket.OPEN:
-						setStatus("connected");
-						break;
-					case WebSocket.CLOSING:
-					case WebSocket.CLOSED:
-						setStatus("disconnected");
-						break;
-				}
-			}
-		};
-
-		// Vérifier l'état de connexion périodiquement
-		const intervalId = setInterval(checkConnection, 1000);
-		checkConnection(); // Check initial state
-
-		// Initial peer count
-		updatePeers();
-
+		// 5️⃣ Nettoyage à la destruction du composant
 		return () => {
-			clearInterval(intervalId);
 			provider.destroy();
 			ydoc.destroy();
 			ydocRef.current = null;
 			providerRef.current = null;
 		};
-	}, [roomId, url]);
+	}, [roomId, url]); // Recrée la connexion si roomId ou url changent
 
 	return {
 		ydoc: ydocRef.current,

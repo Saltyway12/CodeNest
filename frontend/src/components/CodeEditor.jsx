@@ -12,9 +12,11 @@ const CodeEditor = () => {
   const editorRef = useRef(null);
   const monacoRef = useRef(null);
   const bindingRef = useRef(null);
+
   const [language, setLanguage] = useState("javascript");
   const [isEditorReady, setIsEditorReady] = useState(false);
 
+  // ✅ Connexion Yjs via hook
   const { ydoc, provider, connectedPeers, status } = useYjsProvider(
     `call-${callId}-editor`,
     "wss://codenest-go66.onrender.com"
@@ -26,7 +28,7 @@ const CodeEditor = () => {
     setIsEditorReady(true);
   };
 
-  // Effet séparé pour la liaison Y.js
+  // ✅ Lier Monaco ↔️ Yjs
   useEffect(() => {
     if (!isEditorReady || !ydoc || !provider || !editorRef.current) return;
 
@@ -38,7 +40,7 @@ const CodeEditor = () => {
       bindingRef.current.destroy();
     }
 
-    // Créer la nouvelle liaison
+    // Créer la liaison collaborative
     const binding = new MonacoBinding(
       yText,
       editor.getModel(),
@@ -47,14 +49,14 @@ const CodeEditor = () => {
     );
     bindingRef.current = binding;
 
-    // Configuration de l'awareness
+    // Configurer l’état "local" pour awareness
     provider.awareness.setLocalStateField("user", {
       name: `User-${Math.floor(Math.random() * 1000)}`,
       color: `hsl(${Math.floor(Math.random() * 360)},70%,50%)`,
       cursor: null,
     });
 
-    // Initialiser le contenu seulement si le document est vide
+    // Initialiser le contenu seulement si le doc est vide
     if (yText.length === 0) {
       const defaultSnippet = CODE_SNIPPETS[language] || "";
       yText.insert(0, defaultSnippet);
@@ -62,25 +64,28 @@ const CodeEditor = () => {
 
     editor.focus();
 
+    // 🔄 Cleanup
     return () => {
       if (bindingRef.current) {
         bindingRef.current.destroy();
         bindingRef.current = null;
       }
+      // Important pour éviter les "ghost cursors"
+      provider.awareness.setLocalState(null);
     };
-  }, [isEditorReady, ydoc, provider, language]);
+  }, [isEditorReady, ydoc, provider]);
 
+  // ✅ Changement de langage → remplacer le code
   const onSelect = (lang) => {
     setLanguage(lang);
     if (!ydoc || !editorRef.current) return;
-    
+
     const yText = ydoc.getText("monaco");
-    
-    // Remplacer le contenu existant
-    const currentContent = yText.toString();
-    if (currentContent !== CODE_SNIPPETS[lang]) {
+    const newSnippet = CODE_SNIPPETS[lang] || "";
+
+    if (yText.toString() !== newSnippet) {
       yText.delete(0, yText.length);
-      yText.insert(0, CODE_SNIPPETS[lang] || "");
+      yText.insert(0, newSnippet);
     }
   };
 
@@ -93,10 +98,16 @@ const CodeEditor = () => {
 
   return (
     <div>
+      {/* Header status */}
       <div className="mb-4 p-2 bg-gray-100 dark:bg-gray-800 rounded-lg flex justify-between items-center text-sm">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${getStatusColor(status).replace("text-", "bg-")}`}></div>
+            <div
+              className={`w-2 h-2 rounded-full ${getStatusColor(status).replace(
+                "text-",
+                "bg-"
+              )}`}
+            ></div>
             <span className={getStatusColor(status)}>
               {status === "connected"
                 ? "Connecté"
@@ -106,13 +117,14 @@ const CodeEditor = () => {
             </span>
           </div>
           <div className="text-gray-600 dark:text-gray-400">
-            {connectedPeers} participant{connectedPeers !== 1 ? "s" : ""} connecté
-            {connectedPeers !== 1 ? "s" : ""}
+            {connectedPeers} participant{connectedPeers !== 1 ? "s" : ""}{" "}
+            connecté{connectedPeers !== 1 ? "s" : ""}
           </div>
         </div>
         <div className="text-gray-500 text-xs">Room: {callId}</div>
       </div>
 
+      {/* Layout */}
       <div className="flex gap-4">
         <div className="w-1/2">
           <LanguageSelector language={language} onSelect={onSelect} />
@@ -125,8 +137,7 @@ const CodeEditor = () => {
               scrollBeyondLastLine: false,
               renderWhitespace: "selection",
               cursorBlinking: "smooth",
-              // Options pour une meilleure collaboration
-              renderLineHighlight: "gutter",
+              renderLineHighlight: "gutter", // aide la collab
               occurrencesHighlight: false,
               selectionHighlight: false,
             }}
@@ -136,6 +147,8 @@ const CodeEditor = () => {
             onMount={onMount}
           />
         </div>
+
+        {/* Output (exécution code) */}
         <Output editorRef={editorRef} language={language} />
       </div>
     </div>
