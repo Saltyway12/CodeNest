@@ -21,6 +21,7 @@ const CodeEditor = () => {
     setApplyingRemoteChange,
     setOnInitialContent,
     setOnRemoteChange,
+    reconnect,
   } = useCollaborativeEditor(callId);
 
   // --------------------
@@ -28,17 +29,32 @@ const CodeEditor = () => {
   // --------------------
   useEffect(() => {
     setOnInitialContent((content) => {
-      if (!editorRef.current || !isEditorReady) return;
+      if (!editorRef.current || !isEditorReady) {
+        console.warn("⚠️ Editor pas encore prêt pour le contenu initial");
+        return;
+      }
       
-      console.log("📥 Réception contenu initial");
+      console.log("🔥 Réception contenu initial:", content);
       setApplyingRemoteChange(true);
       
-      const editor = editorRef.current;
-      const model = editor.getModel();
-      const initialContent = content || CODE_SNIPPETS[language] || "";
-      
-      model.setValue(initialContent);
-      setApplyingRemoteChange(false);
+      try {
+        const editor = editorRef.current;
+        const model = editor.getModel();
+        
+        if (!model) {
+          console.error("❌ Modèle Monaco non disponible");
+          return;
+        }
+        
+        const initialContent = content || CODE_SNIPPETS[language] || "";
+        model.setValue(initialContent);
+        
+        console.log("✅ Contenu initial appliqué");
+      } catch (error) {
+        console.error("❌ Erreur application contenu initial:", error);
+      } finally {
+        setApplyingRemoteChange(false);
+      }
     });
   }, [isEditorReady, language, setOnInitialContent, setApplyingRemoteChange]);
 
@@ -47,26 +63,53 @@ const CodeEditor = () => {
   // --------------------
   useEffect(() => {
     setOnRemoteChange((changes) => {
-      if (!editorRef.current || !isEditorReady) return;
+      if (!editorRef.current || !isEditorReady) {
+        console.warn("⚠️ Editor pas encore prêt pour les changements distants");
+        return;
+      }
       
-      console.log("📥 Application delta distant:", changes);
+      if (!Array.isArray(changes)) {
+        console.error("❌ Changes n'est pas un array:", changes);
+        return;
+      }
+      
+      console.log("🔥 Application delta distant:", changes);
       setApplyingRemoteChange(true);
       
-      const editor = editorRef.current;
-      const model = editor.getModel();
-      
       try {
-        const monacoEdits = changes.map(change => ({
-          range: {
-            startLineNumber: model.getPositionAt(change.rangeOffset).lineNumber,
-            startColumn: model.getPositionAt(change.rangeOffset).column,
-            endLineNumber: model.getPositionAt(change.rangeOffset + change.rangeLength).lineNumber,
-            endColumn: model.getPositionAt(change.rangeOffset + change.rangeLength).column,
-          },
-          text: change.text,
-        }));
+        const editor = editorRef.current;
+        const model = editor.getModel();
         
-        model.applyEdits(monacoEdits);
+        if (!model) {
+          console.error("❌ Modèle Monaco non disponible");
+          return;
+        }
+        
+        const monacoEdits = changes.map(change => {
+          try {
+            const startPos = model.getPositionAt(change.rangeOffset || 0);
+            const endPos = model.getPositionAt((change.rangeOffset || 0) + (change.rangeLength || 0));
+            
+            return {
+              range: {
+                startLineNumber: startPos.lineNumber,
+                startColumn: startPos.column,
+                endLineNumber: endPos.lineNumber,
+                endColumn: endPos.column,
+              },
+              text: change.text || "",
+            };
+          } catch (posError) {
+            console.error("❌ Erreur calcul position:", posError, change);
+            return null;
+          }
+        }).filter(edit => edit !== null);
+        
+        if (monacoEdits.length > 0) {
+          model.applyEdits(monacoEdits);
+          console.log("✅ Changements distants appliqués");
+        }
+        
       } catch (error) {
         console.error("❌ Erreur application delta:", error);
       } finally {
@@ -79,56 +122,88 @@ const CodeEditor = () => {
   // MONTE DE L'EDITEUR
   // --------------------
   const onMount = (editor) => {
+    console.log("🏗️ Monaco Editor en cours de montage...");
     editorRef.current = editor;
-    setIsEditorReady(true);
+    
+    // Attendre que l'éditeur soit complètement prêt
+    setTimeout(() => {
+      setIsEditorReady(true);
+      console.log("✅ Monaco Editor prêt");
+    }, 100);
 
     // Écouter les changements
     editor.onDidChangeModelContent((event) => {
-      if (isApplyingRemoteChange()) return;
+      if (isApplyingRemoteChange()) {
+        console.log("⏭️ Ignoré: changement distant en cours d'application");
+        return;
+      }
       
-      const changes = event.changes.map(change => ({
-        rangeOffset: change.rangeOffset,
-        rangeLength: change.rangeLength,
-        text: change.text,
-      }));
-      
-      if (changes.length > 0) {
-        sendDeltaChange(changes);
+      try {
+        const changes = event.changes.map(change => ({
+          rangeOffset: change.rangeOffset || 0,
+          rangeLength: change.rangeLength || 0,
+          text: change.text || "",
+        }));
+        
+        if (changes.length > 0) {
+          console.log("📝 Changement local détecté:", changes);
+          sendDeltaChange(changes);
+        }
+      } catch (error) {
+        console.error("❌ Erreur traitement changement local:", error);
       }
     });
 
     editor.focus();
-    console.log("✅ Monaco Editor prêt");
   };
 
   // --------------------
   // CHANGEMENT DE LANGAGE
   // --------------------
   const onSelect = (lang) => {
+    console.log("🔄 Changement de langage:", lang);
     setLanguage(lang);
     
-    if (!editorRef.current) return;
+    if (!editorRef.current || !isEditorReady) {
+      console.warn("⚠️ Editor pas encore prêt pour changement langage");
+      return;
+    }
     
-    const editor = editorRef.current;
-    const newSnippet = CODE_SNIPPETS[lang] || "";
-    
-    setApplyingRemoteChange(true);
-    const model = editor.getModel();
-    const fullRange = model.getFullModelRange();
-    
-    model.applyEdits([{
-      range: fullRange,
-      text: newSnippet,
-    }]);
-    
-    setApplyingRemoteChange(false);
-    
-    // Envoyer le changement
-    sendDeltaChange([{
-      rangeOffset: 0,
-      rangeLength: model.getValue().length - newSnippet.length,
-      text: newSnippet,
-    }]);
+    try {
+      const editor = editorRef.current;
+      const model = editor.getModel();
+      
+      if (!model) {
+        console.error("❌ Modèle Monaco non disponible");
+        return;
+      }
+      
+      const currentContent = model.getValue();
+      const newSnippet = CODE_SNIPPETS[lang] || "";
+      
+      setApplyingRemoteChange(true);
+      
+      const fullRange = model.getFullModelRange();
+      model.applyEdits([{
+        range: fullRange,
+        text: newSnippet,
+      }]);
+      
+      setApplyingRemoteChange(false);
+      
+      // Envoyer le changement
+      const changeData = [{
+        rangeOffset: 0,
+        rangeLength: currentContent.length,
+        text: newSnippet,
+      }];
+      
+      console.log("📤 Envoi changement langage:", changeData);
+      sendDeltaChange(changeData);
+      
+    } catch (error) {
+      console.error("❌ Erreur changement langage:", error);
+    }
   };
 
   // --------------------
@@ -152,6 +227,14 @@ const CodeEditor = () => {
     }
   };
 
+  if (!callId) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-red-500">❌ ID d'appel manquant</div>
+      </div>
+    );
+  }
+
   return (
     <div>
       {/* Header de statut */}
@@ -164,6 +247,16 @@ const CodeEditor = () => {
             <span className={getStatusColor(connectionStatus)}>
               {getStatusText(connectionStatus)}
             </span>
+            
+            {/* Bouton de reconnexion si erreur ou déconnecté */}
+            {(connectionStatus === "error" || connectionStatus === "disconnected") && (
+              <button
+                onClick={reconnect}
+                className="px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition-colors"
+              >
+                🔄 Reconnecter
+              </button>
+            )}
           </div>
           
           <div className="text-gray-600 dark:text-gray-400">
@@ -200,6 +293,7 @@ const CodeEditor = () => {
             height="75vh"
             theme="vs-dark"
             language={language}
+            defaultValue={CODE_SNIPPETS[language]}
             onMount={onMount}
           />
         </div>
