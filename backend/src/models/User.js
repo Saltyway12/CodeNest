@@ -1,74 +1,78 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 
-// Création du schéma utilisateur avec timestamps (createdAt et updatedAt)
-// Le timestamp permet de savoir depuis quand un utilisateur est membre
+// Définition du schéma MongoDB pour le modèle User
+// Inclut les timestamps automatiques (createdAt, updatedAt)
 const userSchema = new mongoose.Schema(
 	{
 		fullName: {
-			type: String, // Nom complet de l'utilisateur
-			required: true, // Champ obligatoire
+			type: String,
+			required: true, // Nom complet obligatoire
 		},
 		email: {
-			type: String, // Adresse email
-			required: true, // Champ obligatoire
-			unique: true, // L'email doit être unique dans la base de données
+			type: String,
+			required: true, // Email obligatoire
+			unique: true, // Contrainte d'unicité sur l'email
 		},
 		password: {
-			type: String, // Mot de passe
-			required: true, // Champ obligatoire
+			type: String,
+			required: true, // Mot de passe obligatoire
 			minlength: 6, // Longueur minimale de 6 caractères
 		},
 		bio: {
-			type: String, // Biographie ou description de l'utilisateur
-			default: "", // Par défaut, champ vide
+			type: String,
+			default: "", // Biographie ou description personnelle
 		},
 		profilePic: {
-			type: String, // URL de la photo de profil
-			default: "", // Par défaut, champ vide
+			type: String,
+			default: "", // URL de la photo de profil
 		},
 		nativeLanguage: {
-			type: String, // Langue maternelle
-			default: "", // Par défaut, champ vide
+			type: String,
+			default: "", // Langue maternelle de l'utilisateur
 		},
 		learningLanguage: {
-			type: String, // Langue en apprentissage
-			default: "", // Par défaut, champ vide
+			type: String,
+			default: "", // Langage que l'utilisateur souhaite apprendre
 		},
 		location: {
-			type: String, // Localisation de l'utilisateur
-			default: "", // Par défaut, champ vide
+			type: String,
+			default: "", // Localisation géographique
 		},
 		isOnBoarded: {
-			type: Boolean, // Indique si l'utilisateur a terminé l'onboarding
-			default: false, // Par défaut, false
+			type: Boolean,
+			default: false, // Statut de completion de l'onboarding initial
 		},
-
-		// Liste d'amis (références à d'autres utilisateurs)
+		// Tableau des références vers les amis de l'utilisateur
 		friends: [
 			{
-				type: mongoose.Schema.Types.ObjectId, // Stocke l'ID MongoDB d'un autre utilisateur
-				ref: "User", // Référence au modèle User pour population future
+				type: mongoose.Schema.Types.ObjectId,
+				ref: "User", // Référence au modèle User pour les requêtes populate
 			},
 		],
 	},
-	{ timestamps: true } // Création automatique des champs createdAt et updatedAt
+	{ timestamps: true } // Ajout automatique des champs createdAt et updatedAt
 );
 
-// Hook Mongoose exécuté avant l'enregistrement ("save")
-// Permet de hacher le mot de passe avant de le stocker en base
+// Middleware pre-save pour le hachage automatique du mot de passe
+// S'exécute avant chaque opération de sauvegarde
 userSchema.pre("save", async function (next) {
-	// Si le mot de passe n'a pas été modifié, on passe au suivant
+	// Vérifie si le champ password a été modifié
 	if (!this.isModified("password")) return next();
+
 	try {
-		const salt = await bcrypt.genSalt(10); // Génération d'un sel pour le hash
-		this.password = await bcrypt.hash(this.password, salt); // Hachage du mot de passe
-		next(); // Passe à l'enregistrement
+		// Génération d'un sel cryptographique avec coût 10
+		const salt = await bcrypt.genSalt(10);
+		// Hachage du mot de passe avec le sel généré
+		this.password = await bcrypt.hash(this.password, salt);
+		next();
 	} catch (error) {
-		next(error); // En cas d'erreur, passe l'erreur au middleware suivant
+		next(error); // Propagation de l'erreur vers le middleware suivant
 	}
 });
 
+// Méthode d'instance pour la vérification du mot de passe
+// Compare un mot de passe en clair avec le hash stocké
 userSchema.methods.matchPassword = async function (enteredPassword) {
 	const isPasswordCorrect = await bcrypt.compare(
 		enteredPassword,
@@ -77,7 +81,8 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
 	return isPasswordCorrect;
 };
 
-// Création du modèle Mongoose basé sur le schéma
+// Création du modèle Mongoose basé sur le schéma défini
 const User = mongoose.model("User", userSchema);
 
-export default User; // Export du modèle pour l'utiliser ailleurs dans l'application
+// Export du modèle pour utilisation dans les contrôleurs et services
+export default User;

@@ -2,21 +2,30 @@ import http from "http";
 import { WebSocketServer } from "ws";
 import url from "url";
 
-// --------------------
-// STOCKAGE DES ROOMS EN MÉMOIRE
-// --------------------
-const rooms = new Map(); // callId -> { clients: Set, content: string }
+// Stockage des salles de collaboration en mémoire
+// Structure: Map<callId, { clients: Set<WebSocket>, content: string }>
+// Chaque salle est identifiée par un callId unique
+const rooms = new Map();
 
+/**
+ * Récupère une salle existante ou la crée si elle n'existe pas
+ * @param {string} callId - Identifiant unique de la salle
+ * @returns {object} Objet salle contenant les clients connectés et le contenu partagé
+ */
 function getRoom(callId) {
 	if (!rooms.has(callId)) {
 		rooms.set(callId, {
 			clients: new Set(),
-			content: "", // Contenu actuel de l'éditeur
+			content: "", // Contenu collaboratif initial vide
 		});
 	}
 	return rooms.get(callId);
 }
 
+/**
+ * Supprime une salle vide de la mémoire
+ * @param {string} callId - Identifiant de la salle à nettoyer
+ */
 function cleanupRoom(callId) {
 	const room = rooms.get(callId);
 	if (room && room.clients.size === 0) {
@@ -25,16 +34,18 @@ function cleanupRoom(callId) {
 	}
 }
 
-// --------------------
-// GESTION D'UN CLIENT WEBSOCKET
-// --------------------
+/**
+ * Gère la connexion d'un nouveau client WebSocket à une salle
+ * @param {WebSocket} ws - Instance WebSocket du client
+ * @param {string} callId - Identifiant de la salle à rejoindre
+ */
 function handleConnection(ws, callId) {
 	console.log(`👤 Nouveau client connecté à la room: ${callId}`);
 
 	const room = getRoom(callId);
 	room.clients.add(ws);
 
-	// Envoyer le contenu actuel au nouveau client
+	// Envoi du contenu initial de la salle au nouveau client
 	try {
 		const initialMessage = {
 			type: "INITIAL_CONTENT",
@@ -51,17 +62,17 @@ function handleConnection(ws, callId) {
 		console.error("❌ Erreur envoi contenu initial:", error);
 	}
 
-	// Notifier les autres clients qu'un nouveau participant a rejoint
+	// Notification aux autres clients de l'arrivée du nouveau participant
 	broadcastToRoom(
 		callId,
 		{
 			type: "USER_JOINED",
 			participantCount: room.clients.size,
 		},
-		ws
+		ws // Exclusion de l'expéditeur
 	);
 
-	// Gérer les messages entrants
+	// Écoute des messages entrants du client
 	ws.on("message", (data) => {
 		try {
 			const message = JSON.parse(data.toString());
@@ -69,10 +80,12 @@ function handleConnection(ws, callId) {
 
 			switch (message.type) {
 				case "DELTA_CHANGE":
+					// Traitement des modifications collaboratives du contenu
 					handleDeltaChange(callId, message, ws);
 					break;
 
 				case "CURSOR_POSITION":
+					// Synchronisation de la position du curseur entre clients
 					handleCursorPosition(callId, message, ws);
 					break;
 
@@ -84,12 +97,12 @@ function handleConnection(ws, callId) {
 		}
 	});
 
-	// Gérer la déconnexion
+	// Gestion de la déconnexion du client
 	ws.on("close", () => {
 		console.log(`👋 Client déconnecté de la room: ${callId}`);
 		room.clients.delete(ws);
 
-		// Notifier les autres clients
+		// Notification aux participants restants
 		if (room.clients.size > 0) {
 			broadcastToRoom(callId, {
 				type: "USER_LEFT",
@@ -100,6 +113,7 @@ function handleConnection(ws, callId) {
 		cleanupRoom(callId);
 	});
 
+	// Gestion des erreurs WebSocket
 	ws.on("error", (error) => {
 		console.error("❌ Erreur WebSocket:", error);
 		room.clients.delete(ws);
@@ -107,14 +121,18 @@ function handleConnection(ws, callId) {
 	});
 }
 
-// --------------------
-// GESTION DES CHANGEMENTS DELTA
-// --------------------
+/**
+ * Traite les modifications delta du contenu collaboratif
+ * Applique les changements et les synchronise avec les autres clients
+ * @param {string} callId - Identifiant de la salle
+ * @param {object} message - Message contenant les modifications delta
+ * @param {WebSocket} senderWs - WebSocket de l'expéditeur
+ */
 function handleDeltaChange(callId, message, senderWs) {
 	const room = getRoom(callId);
 	const { changes } = message;
 
-	// Validation des données
+	// Validation de la structure des données
 	if (!Array.isArray(changes)) {
 		console.error("❌ Changes n'est pas un array:", changes);
 		return;
@@ -126,23 +144,23 @@ function handleDeltaChange(callId, message, senderWs) {
 	}
 
 	try {
-		// Appliquer les changements au contenu de la room
 		let content = room.content;
 
-		// IMPORTANT: Trier les changements par offset décroissant
-		// pour éviter que les modifications précédentes affectent les offsets suivants
+		// Tri des changements par offset décroissant
+		// Évite le décalage des indices lors de l'application séquentielle
 		const sortedChanges = [...changes].sort(
 			(a, b) => (b.rangeOffset || 0) - (a.rangeOffset || 0)
 		);
 
 		console.log(`🔄 Application de ${sortedChanges.length} changements`);
 
+		// Application séquentielle des modifications
 		for (const change of sortedChanges) {
 			const rangeOffset = change.rangeOffset || 0;
 			const rangeLength = change.rangeLength || 0;
 			const text = change.text || "";
 
-			// Vérifier que l'offset est valide
+			// Validation des limites de modification
 			if (rangeOffset < 0 || rangeOffset > content.length) {
 				console.error(
 					`❌ Offset invalide: ${rangeOffset}, contenu: ${content.length} caractères`
@@ -157,28 +175,28 @@ function handleDeltaChange(callId, message, senderWs) {
 				continue;
 			}
 
-			// Appliquer le changement
+			// Application de la modification au contenu
 			content =
 				content.slice(0, rangeOffset) +
 				text +
 				content.slice(rangeOffset + rangeLength);
 
 			console.log(
-				`📝 Changement appliqué: offset=${rangeOffset}, length=${rangeLength}, text="${text.substring(
+				`🔍 Changement appliqué: offset=${rangeOffset}, length=${rangeLength}, text="${text.substring(
 					0,
 					50
 				)}..."`
 			);
 		}
 
+		// Mise à jour du contenu partagé de la salle
 		room.content = content;
 		console.log(`✅ Contenu mis à jour: ${content.length} caractères`);
 
-		// Diffuser les changements aux autres clients
-		// IMPORTANT: Renvoyer les changements originaux (non triés) pour préserver l'ordre Monaco
+		// Diffusion des modifications aux autres clients
 		const deltaMessage = {
 			type: "DELTA_CHANGE",
-			changes: changes, // Utiliser les changements originaux
+			changes: changes, // Conservation de l'ordre original
 			timestamp: Date.now(),
 		};
 
@@ -186,14 +204,15 @@ function handleDeltaChange(callId, message, senderWs) {
 		console.log(`📡 Delta diffusé à ${room.clients.size - 1} clients`);
 	} catch (error) {
 		console.error("❌ Erreur application delta:", error);
-		console.error("❌ Changements problématiques:", changes);
-		console.error("❌ Contenu actuel:", room.content.length, "caractères");
 	}
 }
 
-// --------------------
-// GESTION CURSEUR
-// --------------------
+/**
+ * Synchronise la position du curseur d'un client avec les autres
+ * @param {string} callId - Identifiant de la salle
+ * @param {object} message - Message contenant les données de position du curseur
+ * @param {WebSocket} senderWs - WebSocket de l'expéditeur
+ */
 function handleCursorPosition(callId, message, senderWs) {
 	const cursorMessage = {
 		type: "CURSOR_POSITION",
@@ -202,12 +221,16 @@ function handleCursorPosition(callId, message, senderWs) {
 		color: message.color,
 	};
 
+	// Diffusion de la position du curseur aux autres clients
 	broadcastToRoom(callId, cursorMessage, senderWs);
 }
 
-// --------------------
-// DIFFUSION DANS UNE ROOM
-// --------------------
+/**
+ * Diffuse un message à tous les clients d'une salle
+ * @param {string} callId - Identifiant de la salle
+ * @param {object} message - Message à diffuser
+ * @param {WebSocket} excludeWs - Client à exclure de la diffusion (optionnel)
+ */
 function broadcastToRoom(callId, message, excludeWs = null) {
 	const room = rooms.get(callId);
 	if (!room) {
@@ -219,9 +242,9 @@ function broadcastToRoom(callId, message, excludeWs = null) {
 	let sentCount = 0;
 	let failedCount = 0;
 
+	// Envoi du message à chaque client connecté
 	room.clients.forEach((client) => {
 		if (client !== excludeWs && client.readyState === 1) {
-			// WebSocket.OPEN = 1
 			try {
 				client.send(messageStr);
 				sentCount++;
@@ -239,25 +262,30 @@ function broadcastToRoom(callId, message, excludeWs = null) {
 		);
 	}
 
-	// Nettoyer les clients déconnectés
+	// Nettoyage des clients déconnectés
 	if (failedCount > 0) {
 		cleanupRoom(callId);
 	}
 }
 
-// --------------------
-// SETUP SERVEUR WEBSOCKET
-// --------------------
+/**
+ * Configure et initialise le serveur WebSocket
+ * @param {Express} app - Instance de l'application Express
+ * @returns {http.Server} Serveur HTTP avec support WebSocket
+ */
 export function setupWebSocketServer(app) {
 	const server = http.createServer(app);
+
+	// Création du serveur WebSocket monté sur le serveur HTTP
 	const wss = new WebSocketServer({
 		server,
-		path: "/ws", // WebSocket disponible sur ws://localhost:5001/ws
+		path: "/ws", // Endpoint WebSocket accessible via ws://localhost:PORT/ws?callId=xxx
 	});
 
+	// Gestionnaire de nouvelles connexions WebSocket
 	wss.on("connection", (ws, req) => {
 		try {
-			// Extraire callId des query params
+			// Extraction du paramètre callId depuis l'URL
 			const queryParams = url.parse(req.url, true).query;
 			const callId = queryParams.callId;
 
@@ -275,11 +303,13 @@ export function setupWebSocketServer(app) {
 		}
 	});
 
+	// Gestionnaire d'erreurs globales du serveur WebSocket
 	wss.on("error", (error) => {
 		console.error("❌ Erreur WebSocketServer:", error);
 	});
 
-	// Statistiques et nettoyage périodique
+	// Tâche de maintenance périodique (30 secondes)
+	// Affiche les statistiques et nettoie les ressources orphelines
 	setInterval(() => {
 		if (rooms.size > 0) {
 			console.log(`📊 Rooms actives: ${rooms.size}`);
@@ -288,11 +318,10 @@ export function setupWebSocketServer(app) {
 					`  - ${callId}: ${room.clients.size} client(s), ${room.content.length} chars`
 				);
 
-				// Nettoyer les clients fantômes (connexions fermées mais non supprimées)
+				// Suppression des clients avec connexions fermées
 				let cleanedClients = 0;
 				room.clients.forEach((client) => {
 					if (client.readyState !== 1) {
-						// Pas OPEN
 						room.clients.delete(client);
 						cleanedClients++;
 					}
@@ -306,14 +335,14 @@ export function setupWebSocketServer(app) {
 			});
 		}
 
-		// Nettoyer les rooms vides
+		// Suppression des salles complètement vides
 		rooms.forEach((room, callId) => {
 			if (room.clients.size === 0) {
 				rooms.delete(callId);
 				console.log(`🧹 Room vide supprimée: ${callId}`);
 			}
 		});
-	}, 30000); // Toutes les 30 secondes
+	}, 30000);
 
 	return server;
 }
