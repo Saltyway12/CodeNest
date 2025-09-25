@@ -13,17 +13,24 @@ import useAuthUser from "./hooks/useAuthUser.js";
 import Layout from "./components/Layout.jsx";
 import { useThemeStore } from "./store/useThemeStore.js";
 
+/**
+ * Composant racine de l'application
+ * Gère le routage principal et la logique d'authentification
+ * Applique les redirections basées sur le statut utilisateur
+ */
 const App = () => {
   const { isLoading, authUser } = useAuthUser();
   const { theme } = useThemeStore();
   const isAuthenticated = Boolean(authUser);
   const isOnboarded = authUser?.isOnBoarded;
 
+  // Affichage du loader pendant la vérification d'authentification
   if (isLoading) return <PageLoader />;
 
   return (
     <div className="min-h-screen" data-theme={theme}>
       <Routes>
+        {/* Route principale - accueil pour utilisateurs connectés et configurés */}
         <Route
           path="/"
           element={
@@ -36,14 +43,20 @@ const App = () => {
             )
           }
         />
+
+        {/* Route d'inscription - accessible uniquement aux non-connectés */}
         <Route path="/inscription" element={
             !isAuthenticated ? <SignUpPage /> : <Navigate to={isOnboarded ? "/" : "/configuration-profil"} />
           }
         />
+
+        {/* Route de connexion - accessible uniquement aux non-connectés */}
         <Route path="/connexion" element={
             !isAuthenticated ? <LoginPage /> : <Navigate to={isOnboarded ? "/" : "/configuration-profil"} />
           }
         />
+
+        {/* Route des notifications - utilisateurs connectés et configurés uniquement */}
         <Route
           path="/notifications"
           element={
@@ -56,6 +69,8 @@ const App = () => {
             )
           }
         />
+
+        {/* Route d'appel vidéo - sans sidebar pour interface plein écran */}
         <Route
           path="/appel/:id"
           element={
@@ -66,6 +81,8 @@ const App = () => {
             )
           }
         />
+
+        {/* Route de chat - sidebar désactivée pour maximiser l'espace de conversation */}
         <Route
           path="/chat/:id"
           element={
@@ -78,6 +95,8 @@ const App = () => {
             )
           }
         />
+
+        {/* Route de configuration initiale du profil - obligatoire après inscription */}
         <Route
           path="/configuration-profil"
           element={
@@ -94,6 +113,7 @@ const App = () => {
         />
       </Routes>
 
+      {/* Composant global pour les notifications toast */}
       <Toaster/>
     </div>
   )
