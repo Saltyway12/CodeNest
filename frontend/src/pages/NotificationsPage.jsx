@@ -3,17 +3,25 @@ import { acceptFriendRequest, getFriendRequests } from "../lib/api";
 import { BellIcon, ClockIcon, MessageSquareIcon, UserCheckIcon } from "lucide-react";
 import NoNotificationsFound from "../components/NoNotificationsFound.jsx";
 
+/**
+ * Page de gestion des notifications et demandes d'amitié
+ * Affiche les demandes reçues et les nouvelles connexions acceptées
+ * Permet l'acceptation des demandes avec mise à jour temps réel
+ */
 const NotificationsPage = () => {
   const queryClient = useQueryClient();
 
+  // Récupération des demandes d'amitié (reçues et acceptées)
   const { data: friendRequests, isLoading } = useQuery({
     queryKey: ["friendRequests"],
     queryFn: getFriendRequests,
   });
 
+  // Mutation pour accepter une demande d'amitié
   const { mutate: acceptRequestMutation, isPending } = useMutation({
     mutationFn: acceptFriendRequest,
     onSuccess: () => {
+      // Invalidation des caches pour mise à jour automatique de l'interface
       queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
       queryClient.invalidateQueries({ queryKey: ["friends"] });
     },
@@ -33,6 +41,7 @@ const NotificationsPage = () => {
           </div>
         ) : (
           <>
+            {/* Section des demandes d'amitié reçues */}
             {incomingRequests.length > 0 && (
               <section className="space-y-4">
                 <h2 className="text-xl font-semibold flex items-center gap-2">
@@ -81,7 +90,7 @@ const NotificationsPage = () => {
               </section>
             )}
 
-            {/* ACCEPTED REQS NOTIFICATONS */}
+            {/* Section des nouvelles connexions acceptées */}
             {acceptedRequests.length > 0 && (
               <section className="space-y-4">
                 <h2 className="text-xl font-semibold flex items-center gap-2">
@@ -107,7 +116,7 @@ const NotificationsPage = () => {
                             </p>
                             <p className="text-xs flex items-center opacity-70">
                               <ClockIcon className="h-3 w-3 mr-1" />
-                              A l'instant
+                              À l'instant
                             </p>
                           </div>
                           <div className="badge badge-success">
@@ -122,6 +131,7 @@ const NotificationsPage = () => {
               </section>
             )}
 
+            {/* Affichage si aucune notification disponible */}
             {incomingRequests.length === 0 && acceptedRequests.length === 0 && (
               <NoNotificationsFound />
             )}

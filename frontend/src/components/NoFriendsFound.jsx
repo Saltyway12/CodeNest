@@ -1,3 +1,7 @@
+/**
+ * Composant d'état vide pour la liste d'amis
+ * Affiché quand l'utilisateur n'a aucun ami ajouté
+ */
 const NoFriendsFound = () => {
   return (
     <div className="card bg-base-200 p-6 text-center">

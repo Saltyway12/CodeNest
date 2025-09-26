@@ -1,5 +1,9 @@
 import { BellIcon } from "lucide-react";
 
+/**
+ * Composant d'état vide pour les notifications
+ * Affiché quand aucune notification n'est disponible
+ */
 function NoNotificationsFound() {
 	return (
 		<div className="flex flex-col items-center justify-center py-16 text-center">
@@ -18,4 +22,3 @@ function NoNotificationsFound() {
 }
 
 export default NoNotificationsFound;
-

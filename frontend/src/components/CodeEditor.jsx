@@ -6,13 +6,18 @@ import Output from "./Output";
 import { useParams } from "react-router";
 import { useCollaborativeEditor } from "../hooks/useCollaborativeEditor";
 
+/**
+ * Composant principal de l'éditeur de code collaboratif
+ * Intègre Monaco Editor avec synchronisation en temps réel via WebSocket
+ * Gère les changements locaux et distants, la sélection de langage et l'exécution
+ */
 const CodeEditor = () => {
   const { id: callId } = useParams();
   const editorRef = useRef(null);
   const [language, setLanguage] = useState("javascript");
   const [isEditorReady, setIsEditorReady] = useState(false);
 
-  // Hook personnalisé pour la collaboration
+  // Hook personnalisé pour la gestion de la collaboration WebSocket
   const {
     connectionStatus,
     participantCount,
@@ -24,9 +29,7 @@ const CodeEditor = () => {
     reconnect,
   } = useCollaborativeEditor(callId);
 
-  // --------------------
-  // GESTION CONTENU INITIAL
-  // --------------------
+  // Configuration du callback pour la réception du contenu initial
   useEffect(() => {
     setOnInitialContent((content) => {
       if (!editorRef.current || !isEditorReady) {
@@ -34,7 +37,7 @@ const CodeEditor = () => {
         return;
       }
       
-      console.log("🔥 Réception contenu initial:", content);
+      console.log("📥 Réception contenu initial:", content);
       setApplyingRemoteChange(true);
       
       try {
@@ -58,9 +61,7 @@ const CodeEditor = () => {
     });
   }, [isEditorReady, language, setOnInitialContent, setApplyingRemoteChange]);
 
-  // --------------------
-  // GESTION CHANGEMENTS DISTANTS
-  // --------------------
+  // Configuration du callback pour l'application des changements distants
   useEffect(() => {
     setOnRemoteChange((changes) => {
       if (!editorRef.current || !isEditorReady) {
@@ -73,7 +74,7 @@ const CodeEditor = () => {
         return;
       }
       
-      console.log("🔥 Application delta distant:", changes);
+      console.log("📥 Application delta distant:", changes);
       setApplyingRemoteChange(true);
       
       try {
@@ -85,6 +86,7 @@ const CodeEditor = () => {
           return;
         }
         
+        // Conversion des changements au format Monaco Editor
         const monacoEdits = changes.map(change => {
           try {
             const startPos = model.getPositionAt(change.rangeOffset || 0);
@@ -118,20 +120,18 @@ const CodeEditor = () => {
     });
   }, [isEditorReady, setOnRemoteChange, setApplyingRemoteChange]);
 
-  // --------------------
-  // MONTE DE L'EDITEUR
-  // --------------------
+  // Callback d'initialisation de l'éditeur Monaco
   const onMount = (editor) => {
     console.log("🏗️ Monaco Editor en cours de montage...");
     editorRef.current = editor;
     
-    // Attendre que l'éditeur soit complètement prêt
+    // Délai pour assurer la complète initialisation
     setTimeout(() => {
       setIsEditorReady(true);
       console.log("✅ Monaco Editor prêt");
     }, 100);
 
-    // Écouter les changements
+    // Configuration de l'écoute des changements de contenu
     editor.onDidChangeModelContent((event) => {
       if (isApplyingRemoteChange()) {
         console.log("⏭️ Ignoré: changement distant en cours d'application");
@@ -157,9 +157,7 @@ const CodeEditor = () => {
     editor.focus();
   };
 
-  // --------------------
-  // CHANGEMENT DE LANGAGE
-  // --------------------
+  // Gestionnaire de changement de langage de programmation
   const onSelect = (lang) => {
     console.log("🔄 Changement de langage:", lang);
     setLanguage(lang);
@@ -183,6 +181,7 @@ const CodeEditor = () => {
       
       setApplyingRemoteChange(true);
       
+      // Remplacement complet du contenu par le snippet du nouveau langage
       const fullRange = model.getFullModelRange();
       model.applyEdits([{
         range: fullRange,
@@ -191,7 +190,7 @@ const CodeEditor = () => {
       
       setApplyingRemoteChange(false);
       
-      // Envoyer le changement
+      // Synchronisation du changement avec les autres clients
       const changeData = [{
         rangeOffset: 0,
         rangeLength: currentContent.length,
@@ -206,9 +205,7 @@ const CodeEditor = () => {
     }
   };
 
-  // --------------------
-  // HELPERS UI
-  // --------------------
+  // Utilitaires pour l'affichage du statut de connexion
   const getStatusColor = (status) => {
     switch (status) {
       case "connected": return "text-green-500";
@@ -227,6 +224,7 @@ const CodeEditor = () => {
     }
   };
 
+  // Protection contre l'absence d'ID d'appel
   if (!callId) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -237,7 +235,7 @@ const CodeEditor = () => {
 
   return (
     <div>
-      {/* Header de statut */}
+      {/* Barre d'état de la collaboration */}
       <div className="mb-4 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg flex justify-between items-center text-sm">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
@@ -248,7 +246,7 @@ const CodeEditor = () => {
               {getStatusText(connectionStatus)}
             </span>
             
-            {/* Bouton de reconnexion si erreur ou déconnecté */}
+            {/* Bouton de reconnexion en cas de problème */}
             {(connectionStatus === "error" || connectionStatus === "disconnected") && (
               <button
                 onClick={reconnect}
@@ -273,7 +271,7 @@ const CodeEditor = () => {
         <div className="text-gray-500 text-xs">Room: {callId}</div>
       </div>
 
-      {/* Layout principal */}
+      {/* Layout principal avec éditeur et sortie */}
       <div className="flex gap-4">
         <div className="w-1/2">
           <LanguageSelector language={language} onSelect={onSelect} />

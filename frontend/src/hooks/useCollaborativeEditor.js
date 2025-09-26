@@ -1,9 +1,11 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 
 /**
- * Hook personnalisé pour gérer l'édition collaborative
- * @param {string} callId - ID de la room/appel
- * @returns {Object} Méthodes et état de la connexion collaborative
+ * Hook personnalisé pour gérer l'édition collaborative temps réel
+ * Établit une connexion WebSocket pour la synchronisation de contenu
+ * Gère la reconnexion automatique et les changements collaboratifs
+ * @param {string} callId - Identifiant unique de la session collaborative
+ * @returns {Object} État de connexion et méthodes de synchronisation
  */
 export const useCollaborativeEditor = (callId) => {
 	const wsRef = useRef(null);
@@ -13,41 +15,43 @@ export const useCollaborativeEditor = (callId) => {
 	const [connectionStatus, setConnectionStatus] = useState("disconnected");
 	const [participantCount, setParticipantCount] = useState(1);
 
-	// Utiliser useRef pour stocker les callbacks et éviter les problèmes de re-render
+	// Références pour les callbacks afin d'éviter les re-renders inutiles
 	const onInitialContentRef = useRef(null);
 	const onRemoteChangeRef = useRef(null);
 
-	// Gestion reconnexion
+	// Configuration de la reconnexion automatique
 	const reconnectTimeoutRef = useRef(null);
 	const reconnectAttemptsRef = useRef(0);
 	const maxReconnectAttempts = 5;
 
-	// --------------------
-	// GESTION DES MESSAGES WEBSOCKET
-	// --------------------
+	/**
+	 * Gestionnaire des messages WebSocket entrants
+	 * Traite les différents types de messages collaboratifs
+	 * @param {Object} message - Message WebSocket parsé
+	 */
 	const handleWebSocketMessage = useCallback((message) => {
-		console.log("📨 Message WebSocket reçu:", message.type);
+		console.log("Message WebSocket reçu:", message.type);
 
 		switch (message.type) {
 			case "INITIAL_CONTENT":
-				console.log("📥 Réception contenu initial");
+				console.log("Réception contenu initial");
 				if (onInitialContentRef.current) {
 					onInitialContentRef.current(message.content);
 				}
 				break;
 
 			case "DELTA_CHANGE":
-				console.log("📥 Application delta distant:", message.changes);
+				console.log("Application delta distant:", message.changes);
 
-				// VALIDATION CRITIQUE: s'assurer que changes existe et est un array
+				// Validation critique des changements reçus
 				if (!message.changes) {
-					console.error("❌ Changes est undefined ou null:", message);
+					console.error("Changes est undefined ou null:", message);
 					return;
 				}
 
 				if (!Array.isArray(message.changes)) {
 					console.error(
-						"❌ Changes n'est pas un array:",
+						"Changes n'est pas un array:",
 						typeof message.changes,
 						message.changes
 					);
@@ -55,14 +59,14 @@ export const useCollaborativeEditor = (callId) => {
 				}
 
 				if (message.changes.length === 0) {
-					console.warn("⚠️ Array changes vide");
+					console.warn("Array changes vide");
 					return;
 				}
 
 				if (onRemoteChangeRef.current) {
 					onRemoteChangeRef.current(message.changes);
 				} else {
-					console.warn("⚠️ onRemoteChangeRef.current non défini");
+					console.warn("onRemoteChangeRef.current non défini");
 				}
 				break;
 
@@ -70,40 +74,40 @@ export const useCollaborativeEditor = (callId) => {
 			case "USER_LEFT":
 				if (typeof message.participantCount === "number") {
 					setParticipantCount(message.participantCount);
-					console.log(`👥 Participants: ${message.participantCount}`);
+					console.log(`Participants: ${message.participantCount}`);
 				}
 				break;
 
 			default:
-				console.warn(`⚠️ Message WebSocket inconnu:`, message.type);
+				console.warn(`Message WebSocket inconnu:`, message.type);
 		}
 	}, []);
 
-	// --------------------
-	// CONNEXION WEBSOCKET AVEC RECONNEXION
-	// --------------------
+	/**
+	 * Établit la connexion WebSocket avec gestion de reconnexion
+	 * Configure les gestionnaires d'événements et la logique de retry
+	 */
 	const connectWebSocket = useCallback(() => {
 		if (!callId) return;
 
-		// Nettoyer timeout précédent
+		// Nettoyage des ressources précédentes
 		if (reconnectTimeoutRef.current) {
 			clearTimeout(reconnectTimeoutRef.current);
 			reconnectTimeoutRef.current = null;
 		}
 
-		// Fermer connexion existante si elle existe
 		if (wsRef.current) {
 			wsRef.current.close();
 			wsRef.current = null;
 		}
 
-		// Détection automatique de l'environnement
+		// Configuration de l'URL WebSocket selon l'environnement
 		const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
 		const wsHost = window.location.host;
 		const wsUrl = `${wsProtocol}//${wsHost}/ws?callId=${callId}`;
 
 		console.log(
-			`🔌 Connexion WebSocket à : ${wsUrl} (tentative ${
+			`Connexion WebSocket à : ${wsUrl} (tentative ${
 				reconnectAttemptsRef.current + 1
 			})`
 		);
@@ -113,19 +117,19 @@ export const useCollaborativeEditor = (callId) => {
 			const ws = new WebSocket(wsUrl);
 			wsRef.current = ws;
 
-			// Timeout de connexion
+			// Timeout de sécurité pour la connexion
 			const connectionTimeout = setTimeout(() => {
 				if (ws.readyState === WebSocket.CONNECTING) {
-					console.warn("⏰ Timeout de connexion WebSocket");
+					console.warn("Timeout de connexion WebSocket");
 					ws.close();
 				}
-			}, 10000); // 10 secondes
+			}, 10000);
 
 			ws.onopen = () => {
 				clearTimeout(connectionTimeout);
-				console.log("✅ WebSocket connecté");
+				console.log("WebSocket connecté");
 				setConnectionStatus("connected");
-				reconnectAttemptsRef.current = 0; // Reset compteur
+				reconnectAttemptsRef.current = 0;
 			};
 
 			ws.onmessage = (event) => {
@@ -133,20 +137,19 @@ export const useCollaborativeEditor = (callId) => {
 					const message = JSON.parse(event.data);
 					handleWebSocketMessage(message);
 				} catch (error) {
-					console.error("❌ Erreur parsing message WebSocket:", error);
+					console.error("Erreur parsing message WebSocket:", error);
 				}
 			};
 
 			ws.onclose = (event) => {
 				clearTimeout(connectionTimeout);
-				console.log("🔌 WebSocket fermé:", event.code, event.reason);
+				console.log("WebSocket fermé:", event.code, event.reason);
 
 				if (wsRef.current === ws) {
-					// S'assurer que c'est bien notre connexion
 					setConnectionStatus("disconnected");
 					wsRef.current = null;
 
-					// Reconnexion automatique si pas de fermeture volontaire
+					// Logique de reconnexion automatique avec backoff exponentiel
 					if (
 						event.code !== 1000 &&
 						reconnectAttemptsRef.current < maxReconnectAttempts
@@ -154,9 +157,9 @@ export const useCollaborativeEditor = (callId) => {
 						const delay = Math.min(
 							1000 * Math.pow(2, reconnectAttemptsRef.current),
 							30000
-						); // Backoff exponentiel, max 30s
+						);
 						console.log(
-							`🔄 Reconnexion dans ${delay}ms (tentative ${
+							`Reconnexion dans ${delay}ms (tentative ${
 								reconnectAttemptsRef.current + 1
 							}/${maxReconnectAttempts})`
 						);
@@ -169,7 +172,7 @@ export const useCollaborativeEditor = (callId) => {
 						}, delay);
 					} else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
 						console.error(
-							"❌ Nombre maximum de tentatives de reconnexion atteint"
+							"Nombre maximum de tentatives de reconnexion atteint"
 						);
 						setConnectionStatus("error");
 					}
@@ -178,22 +181,20 @@ export const useCollaborativeEditor = (callId) => {
 
 			ws.onerror = (error) => {
 				clearTimeout(connectionTimeout);
-				console.error("❌ Erreur WebSocket:", error);
+				console.error("Erreur WebSocket:", error);
 				setConnectionStatus("error");
 			};
 		} catch (error) {
-			console.error("❌ Erreur création WebSocket:", error);
+			console.error("Erreur création WebSocket:", error);
 			setConnectionStatus("error");
 		}
 	}, [callId, handleWebSocketMessage]);
 
-	// --------------------
-	// EFFET PRINCIPAL DE CONNEXION
-	// --------------------
+	// Initialisation de la connexion WebSocket
 	useEffect(() => {
 		connectWebSocket();
 
-		// Cleanup: fermer la connexion WebSocket
+		// Nettoyage lors du démontage du composant
 		return () => {
 			if (reconnectTimeoutRef.current) {
 				clearTimeout(reconnectTimeoutRef.current);
@@ -201,24 +202,26 @@ export const useCollaborativeEditor = (callId) => {
 			}
 
 			if (wsRef.current) {
-				console.log("🧹 Fermeture WebSocket...");
-				wsRef.current.close(1000, "Component unmount"); // Code 1000 = fermeture normale
+				console.log("Fermeture WebSocket...");
+				wsRef.current.close(1000, "Component unmount");
 				wsRef.current = null;
 			}
 		};
 	}, [connectWebSocket]);
 
-	// --------------------
-	// ENVOI DES CHANGEMENTS
-	// --------------------
+	/**
+	 * Envoie les changements collaboratifs via WebSocket
+	 * @param {Array} changes - Liste des modifications à synchroniser
+	 * @returns {boolean} Succès de l'envoi
+	 */
 	const sendDeltaChange = useCallback((changes) => {
 		if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-			console.warn("⚠️ WebSocket non connecté");
+			console.warn("WebSocket non connecté");
 			return false;
 		}
 
 		if (!Array.isArray(changes)) {
-			console.error("❌ Changes doit être un array:", changes);
+			console.error("Changes doit être un array:", changes);
 			return false;
 		}
 
@@ -228,19 +231,17 @@ export const useCollaborativeEditor = (callId) => {
 			timestamp: Date.now(),
 		};
 
-		console.log("📤 Envoi delta:", changes);
+		console.log("Envoi delta:", changes);
 		try {
 			wsRef.current.send(JSON.stringify(message));
 			return true;
 		} catch (error) {
-			console.error("❌ Erreur envoi WebSocket:", error);
+			console.error("Erreur envoi WebSocket:", error);
 			return false;
 		}
 	}, []);
 
-	// --------------------
-	// UTILITAIRES
-	// --------------------
+	// Utilitaires de gestion d'état
 	const isApplyingRemoteChange = useCallback(() => {
 		return isApplyingRemoteChangeRef.current;
 	}, []);
@@ -249,7 +250,7 @@ export const useCollaborativeEditor = (callId) => {
 		isApplyingRemoteChangeRef.current = value;
 	}, []);
 
-	// Méthodes pour définir les callbacks
+	// Configuration des callbacks depuis le composant parent
 	const setOnInitialContent = useCallback((callback) => {
 		onInitialContentRef.current = callback;
 	}, []);
@@ -260,24 +261,24 @@ export const useCollaborativeEditor = (callId) => {
 
 	// Méthode de reconnexion manuelle
 	const reconnect = useCallback(() => {
-		console.log("🔄 Reconnexion manuelle demandée");
-		reconnectAttemptsRef.current = 0; // Reset compteur
+		console.log("Reconnexion manuelle demandée");
+		reconnectAttemptsRef.current = 0;
 		connectWebSocket();
 	}, [connectWebSocket]);
 
 	return {
-		// État
+		// État de la connexion collaborative
 		connectionStatus,
 		participantCount,
 		userId: userIdRef.current,
 
-		// Méthodes
+		// Méthodes de synchronisation
 		sendDeltaChange,
 		isApplyingRemoteChange,
 		setApplyingRemoteChange,
 		reconnect,
 
-		// Callbacks à définir par le composant parent
+		// Configuration des callbacks
 		setOnInitialContent,
 		setOnRemoteChange,
 	};

@@ -21,6 +21,11 @@ import CallButton from "../components/CallButton";
 
 const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
 
+/**
+ * Page de chat intégrée avec Stream Chat SDK
+ * Gère la messagerie temps réel entre utilisateurs
+ * Inclut la fonctionnalité d'appels vidéo intégrés
+ */
 const ChatPage = () => {
   const { id: targetUserId } = useParams();
 
@@ -30,12 +35,14 @@ const ChatPage = () => {
 
   const { authUser } = useAuthUser();
 
+  // Récupération du token d'authentification Stream
   const { data: tokenData } = useQuery({
     queryKey: ["streamToken"],
     queryFn: getStreamToken,
-    enabled: !!authUser, // this will run only when authUser is available
+    enabled: !!authUser, // Exécution conditionnelle basée sur la présence de l'utilisateur
   });
 
+  // Initialisation du client de chat et du canal de communication
   useEffect(() => {
     const initChat = async () => {
       if (!tokenData?.token || !authUser) return;
@@ -45,6 +52,7 @@ const ChatPage = () => {
 
         const client = StreamChat.getInstance(STREAM_API_KEY);
 
+        // Connexion de l'utilisateur au service Stream Chat
         await client.connectUser(
           {
             id: authUser._id,
@@ -54,17 +62,16 @@ const ChatPage = () => {
           tokenData.token
         );
 
-        //
+        // Génération d'un ID de canal unique et ordonné pour la conversation
+        // Utilise le tri pour assurer la cohérence peu importe qui initie le chat
         const channelId = [authUser._id, targetUserId].sort().join("-");
 
-        // you and me
-        // if i start the chat => channelId: [myId, yourId]
-        // if you start the chat => channelId: [yourId, myId]  => [myId,yourId]
-
+        // Création du canal de messagerie avec les participants
         const currChannel = client.channel("messaging", channelId, {
           members: [authUser._id, targetUserId],
         });
 
+        // Surveillance du canal pour recevoir les messages en temps réel
         await currChannel.watch();
 
         setChatClient(client);
@@ -80,10 +87,15 @@ const ChatPage = () => {
     initChat();
   }, [tokenData, authUser, targetUserId]);
 
+  /**
+   * Gestionnaire d'appel vidéo
+   * Envoie un lien d'appel vidéo dans le canal de chat
+   */
   const handleVideoCall = () => {
     if (channel) {
       const callUrl = `${window.location.origin}/appel/${channel.id}`;
 
+      // Envoi d'un message avec le lien d'appel
       channel.sendMessage({
         text: `J'ai commencé un appel vidéo. Rejoins moi ici: ${callUrl}`,
       });
@@ -92,6 +104,7 @@ const ChatPage = () => {
     }
   };
 
+  // Affichage du loader pendant l'initialisation
   if (loading || !chatClient || !channel) return <ChatLoader />;
 
   return (
@@ -99,13 +112,18 @@ const ChatPage = () => {
       <Chat client={chatClient}>
         <Channel channel={channel}>
           <div className="w-full relative">
+            {/* Bouton d'appel vidéo intégré */}
             <CallButton handleVideoCall={handleVideoCall} />
             <Window>
+              {/* En-tête du canal avec informations des participants */}
               <ChannelHeader />
+              {/* Liste des messages avec défilement automatique */}
               <MessageList />
+              {/* Zone de saisie de nouveaux messages */}
               <MessageInput focus />
             </Window>
           </div>
+          {/* Fil de discussion pour les réponses aux messages */}
           <Thread />
         </Channel>
       </Chat>

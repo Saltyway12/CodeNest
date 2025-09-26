@@ -1,5 +1,10 @@
 import { VideoIcon } from "lucide-react";
 
+/**
+ * Composant bouton pour initier un appel vidéo
+ * Affiché en position absolue dans l'en-tête du chat
+ * @param {Function} handleVideoCall - Fonction callback pour démarrer l'appel vidéo
+ */
 function CallButton({ handleVideoCall }) {
   return (
     <div className="p-3 border-b flex items-center justify-end max-w-7xl mx-auto w-full absolute top-0">

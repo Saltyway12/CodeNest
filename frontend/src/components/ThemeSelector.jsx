@@ -2,16 +2,21 @@ import { PaletteIcon } from "lucide-react";
 import { useThemeStore } from "../store/useThemeStore";
 import { THEMES } from "../constants";
 
+/**
+ * Composant sélecteur de thème visuel
+ * Menu déroulant avec prévisualisation des couleurs pour chaque thème disponible
+ */
 const ThemeSelector = () => {
   const { theme, setTheme } = useThemeStore();
 
   return (
     <div className="dropdown dropdown-end">
-      {/* DROPDOWN TRIGGER */}
+      {/* Bouton déclencheur du menu déroulant */}
       <button tabIndex={0} className="btn btn-ghost btn-circle">
         <PaletteIcon className="size-5" />
       </button>
 
+      {/* Menu déroulant des thèmes avec défilement */}
       <div
         tabIndex={0}
         className="dropdown-content mt-2 p-1 shadow-2xl bg-base-200 backdrop-blur-lg rounded-2xl
@@ -33,7 +38,8 @@ const ThemeSelector = () => {
             >
               <PaletteIcon className="size-4" />
               <span className="text-sm font-medium">{themeOption.label}</span>
-              {/* THEME PREVIEW COLORS */}
+              
+              {/* Prévisualisation des couleurs du thème */}
               <div className="ml-auto flex gap-1">
                 {themeOption.colors.map((color, i) => (
                   <span

@@ -3,6 +3,11 @@ import { Link } from "react-router";
 import { useState } from "react";
 import useSignUp from "../hooks/useSignUp";
 
+/**
+ * Page d'inscription utilisateur
+ * Formulaire de création de compte avec validation côté client
+ * Interface responsive avec illustration promotionnelle et conditions d'utilisation
+ */
 const SignUpPage = () => {
   const [signupData, setSignupData] = useState({
     fullName: "",
@@ -10,8 +15,12 @@ const SignUpPage = () => {
     password: "",
   });
 
-   const { isPending, error, signupMutation } = useSignUp();
+  const { isPending, error, signupMutation } = useSignUp();
 
+  /**
+   * Gestionnaire de soumission du formulaire d'inscription
+   * Déclenche la mutation de création de compte avec validation des données
+   */
   const handleSignup = (e) => {
     e.preventDefault();
     signupMutation(signupData);
@@ -21,10 +30,9 @@ const SignUpPage = () => {
     <div className="h-screen flex items-center justify-center p-4 sm:p-6 md:p-8" data-theme="autumn">
       <div className="border border-primary/25 flex flex-col lg:flex-row w-full max-w-5xl mx-auto bg-base-100 rounded-xl shadow-lg overflow-hidden">
         
-        {/* Formulaire d'inscription- Côté gauche */}
-
+        {/* Panneau de formulaire d'inscription gauche */}
         <div className="w-full lg:w-1/2 p-4 sm:p-8 flex flex-col">
-          {/* LOGO */}
+          {/* Logo et branding de l'application */}
           <div className="mb-4 flex items-center justify-start gap-2">
             <MessageSquareCode className="size-9 text-primary" />
             <span className="text-3xl font-bold font-mono bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary tracking-wider">
@@ -32,14 +40,14 @@ const SignUpPage = () => {
             </span>
           </div>
 
-          {/* MESSAGE D'ERREUR */}
+          {/* Affichage conditionnel des erreurs de validation */}
           {error && (
             <div className="alert alert-error mb-4">
               <span>{error.response.data.message}</span>
             </div>
           )}
 
-          {/* Formulaire */}
+          {/* Formulaire principal d'inscription */}
           <div className="w-full">
             <form onSubmit={handleSignup}>
 
@@ -52,7 +60,7 @@ const SignUpPage = () => {
                 </div>
 
                 <div className="space-y-3">
-                  {/* Nom */}
+                  {/* Champ nom complet avec validation requise */}
                   <div className="form-control w-full">
                     <label className="label">
                       <span className="label-text">Nom complet</span>
@@ -67,7 +75,8 @@ const SignUpPage = () => {
                       required
                     />
                   </div>
-                  {/* Email */}
+
+                  {/* Champ email avec validation HTML5 */}
                   <div className="form-control w-full">
                     <label className="label">
                       <span className="label-text">E-Mail</span>
@@ -82,7 +91,8 @@ const SignUpPage = () => {
                       required
                     />
                   </div>
-                  {/* Mot de passe */}
+
+                  {/* Champ mot de passe avec exigences de sécurité */}
                   <div className="form-control w-full">
                     <label className="label">
                       <span className="label-text">Mot de passe</span>
@@ -101,6 +111,7 @@ const SignUpPage = () => {
                     </p>
                   </div>
 
+                  {/* Acceptation des conditions d'utilisation */}
                   <div className="form-control">
                     <label className="label cursor-pointer justify-start gap-2">
                       <input type="checkbox" className="checkbox checkbox-sm" required />
@@ -113,6 +124,7 @@ const SignUpPage = () => {
                   </div>
                 </div>
 
+                {/* Bouton de soumission avec état de chargement */}
                 <button className="btn btn-primary w-full" type="submit">
                   {isPending ? (
                     <>
@@ -124,6 +136,7 @@ const SignUpPage = () => {
                   )}
                 </button>
 
+                {/* Lien vers la page de connexion pour utilisateurs existants */}
                 <div className="text-center mt-4">
                   <p className="text-sm">
                     Vous avez déjà un compte? {""}
@@ -138,11 +151,10 @@ const SignUpPage = () => {
           </div>
         </div>
 
-        {/* Formulaire d'inscription- Côté droit */}
+        {/* Panneau promotionnel droit - visible sur desktop uniquement */}
         <div className="hidden lg:flex w-full lg:w-1/2 bg-primary/10 items-center justify-center">
           <div className="max-w-md p-8">
-            {/* image */}
-            {/* TODO voir pour une équivalence en format tablette */}
+            {/* Illustration de la plateforme */}
             <div className="relative aspect-square max-w-sm mx-auto">
               <img
                 src="/i.png"
@@ -151,6 +163,7 @@ const SignUpPage = () => {
               />
             </div>
 
+            {/* Message de présentation de la plateforme */}
             <div className="text-center space-y-3 mt-6">
               <h2 className="text-xl font-semibold">Le nid où les développeurs apprennent et grandissent ensemble.</h2>
               <p className="opacity-70">

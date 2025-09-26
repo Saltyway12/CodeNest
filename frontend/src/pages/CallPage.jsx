@@ -21,6 +21,11 @@ import { Code, Video, PanelLeft, MessageSquareCode } from "lucide-react";
 
 const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
 
+/**
+ * Page d'appel vidéo avec fonctionnalités de programmation collaborative
+ * Intègre Stream Video SDK pour les communications temps réel
+ * Propose différents modes d'affichage (vidéo seule, partagé, code seul)
+ */
 const CallPage = () => {
   const { id: callId } = useParams();
   const [client, setClient] = useState(null);
@@ -28,12 +33,14 @@ const CallPage = () => {
   const [isConnecting, setIsConnecting] = useState(true);
   const { authUser, isLoading } = useAuthUser();
 
+  // Récupération du token Stream pour l'authentification
   const { data: tokenData } = useQuery({
     queryKey: ["streamToken"],
     queryFn: getStreamToken,
     enabled: !!authUser,
   });
 
+  // Initialisation de la connexion à l'appel Stream Video
   useEffect(() => {
     const initCall = async () => {
       if (!tokenData?.token || !authUser || !callId) return;
@@ -46,12 +53,14 @@ const CallPage = () => {
           image: authUser.profilePic,
         };
 
+        // Configuration du client Stream Video avec authentification
         const videoClient = new StreamVideoClient({
           apiKey: STREAM_API_KEY,
           user,
           token: tokenData.token,
         });
 
+        // Création et connexion à l'appel
         const callInstance = videoClient.call("default", callId);
         await callInstance.join({ create: true });
         console.log("Joined call successfully");
@@ -69,6 +78,7 @@ const CallPage = () => {
     initCall();
   }, [tokenData, authUser, callId]);
 
+  // Affichage du loader pendant l'initialisation
   if (isLoading || isConnecting) return <PageLoader />;
 
   return (
@@ -88,17 +98,22 @@ const CallPage = () => {
   );
 };
 
+/**
+ * Composant de contenu de l'appel avec interface utilisateur complète
+ * Gère les différents modes d'affichage et la logique de déconnexion
+ */
 const CallContent = () => {
   const { useCallCallingState } = useCallStateHooks();
   const callingState = useCallCallingState();
   const navigate = useNavigate();
-  const [layout, setLayout] = useState("video-only"); // "video-only", "split", "code-only"
+  const [layout, setLayout] = useState("video-only"); // États : "video-only", "split", "code-only"
 
+  // Redirection automatique si l'utilisateur quitte l'appel
   if (callingState === CallingState.LEFT) return navigate("/");
 
   return (
     <div className="h-screen flex flex-col bg-gray-900">
-      {/* Header avec contrôles de layout */}
+      {/* En-tête avec logo et contrôles de mise en page */}
       <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
         <div className="flex items-center space-x-4">
           <MessageSquareCode className="size-9 text-primary" />
@@ -107,6 +122,7 @@ const CallContent = () => {
           </span>
         </div>
 
+        {/* Boutons de sélection du mode d'affichage */}
         <div className="flex items-center space-x-2">
           <button
             onClick={() => setLayout("video-only")}
@@ -146,9 +162,9 @@ const CallContent = () => {
         </div>
       </div>
 
-      {/* Contenu principal */}
+      {/* Zone de contenu principal avec disposition dynamique */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Section Vidéo */}
+        {/* Section vidéo - masquée en mode "code uniquement" */}
         {layout !== "code-only" && (
           <div
             className={`${
@@ -161,7 +177,7 @@ const CallContent = () => {
           </div>
         )}
 
-        {/* Section Éditeur de code */}
+        {/* Section éditeur de code - masquée en mode "vidéo uniquement" */}
         {layout !== "video-only" && (
           <div
             className={`${
@@ -175,7 +191,7 @@ const CallContent = () => {
         )}
       </div>
 
-      {/* ✅ Contrôles d'appel avec StreamTheme */}
+      {/* Barre de contrôles d'appel en bas */}
       <div className="p-4 bg-gray-800 border-t border-gray-700">
         <StreamTheme>
           <CallControls />

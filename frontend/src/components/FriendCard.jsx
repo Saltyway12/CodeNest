@@ -1,11 +1,16 @@
 import { Link } from "react-router";
 import { LANGUAGE_TO_FLAG, PROGRAMMING_LANGUAGE_TO_ICON } from "../constants";
 
+/**
+ * Composant carte d'affichage d'un ami
+ * Affiche les informations utilisateur et un lien vers la conversation
+ * @param {Object} friend - Objet utilisateur ami avec profil et langues
+ */
 const FriendCard = ({ friend }) => {
     return (
         <div className="card bg-base-200 hover:shadow-md transition-shadow">
             <div className="card-body p-4">
-                {/* USER INFO */}
+                {/* Informations utilisateur */}
                 <div className="flex items-center gap-3 mb-3">
                     <div className="avatar size-12">
                         <img src={friend.profilePic} alt={friend.fullName} />
@@ -13,6 +18,7 @@ const FriendCard = ({ friend }) => {
                     <h3 className="font-semibold truncate">{friend.fullName}</h3>
                 </div>
 
+                {/* Badges de langues */}
                 <div className="flex flex-wrap gap-1.5 mb-3">
                     <span className="badge badge-secondary text-xs">
                         {getLanguageFlag(friend.nativeLanguage)}
@@ -23,6 +29,8 @@ const FriendCard = ({ friend }) => {
                         Apprenant: {friend.learningLanguage}
                     </span>
                 </div>
+                
+                {/* Lien vers la conversation */}
                 <Link to={`/chat/${friend._id}`} className="btn btn-outline w-full">
                     Envoyer un message
                 </Link>
@@ -32,6 +40,11 @@ const FriendCard = ({ friend }) => {
 };
 export default FriendCard;
 
+/**
+ * Génère l'icône du drapeau correspondant à une langue naturelle
+ * @param {string} language - Nom de la langue en format texte
+ * @returns {JSX.Element|null} Image du drapeau ou null si non trouvé
+ */
 // eslint-disable-next-line react-refresh/only-export-components
 export function getLanguageFlag(language) {
   if (!language) return null;
@@ -50,9 +63,16 @@ export function getLanguageFlag(language) {
   }
   return null;
 }
+
+/**
+ * Génère l'icône du logo correspondant à un langage de programmation
+ * Gère les alias et cas spéciaux de nommage
+ * @param {string} language - Nom du langage de programmation
+ * @returns {JSX.Element|null} Image du logo ou null si non trouvé
+ */
 // eslint-disable-next-line react-refresh/only-export-components
 export function getProgrammingLogo(language) {
-    // alias pour gérer les cas spéciaux
+    // Mapping des alias pour les cas spéciaux de nommage
     const LANGUAGE_ALIASES = {
         "c++": "c++",
         "c#": "c#",
@@ -61,11 +81,12 @@ export function getProgrammingLogo(language) {
         "objective c": "objective-c",
         objc: "objective-c",
     };
+    
     if (!language) return null;
 
     let langLower = language.toLowerCase().trim();
 
-    // corrige si c’est un alias connu
+    // Application des alias si nécessaire
     if (LANGUAGE_ALIASES[langLower]) {
         langLower = LANGUAGE_ALIASES[langLower];
     }

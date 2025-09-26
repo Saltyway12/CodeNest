@@ -1,4 +1,5 @@
-// Versions des langages supportés
+// Configuration des versions des langages de programmation supportés
+// Utilisé pour la compilation et l'exécution de code dans l'éditeur collaboratif
 export const LANGUAGE_VERSIONS = {
 	javascript: "18.15.0",
 	typescript: "5.0.3",
@@ -18,7 +19,8 @@ export const LANGUAGE_VERSIONS = {
 	sql: "3.36.0",
 };
 
-// Snippets de code par défaut pour chaque langage
+// Snippets de code par défaut pour chaque langage de programmation
+// Affichés lors de la création d'un nouveau document ou comme exemples
 export const CODE_SNIPPETS = {
 	javascript: `function greet(name) {
   console.log("Bonjour, " + name + " !");

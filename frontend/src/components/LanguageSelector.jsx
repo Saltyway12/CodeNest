@@ -2,9 +2,14 @@ import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { LANGUAGE_VERSIONS } from "../constants/constants";
 
-
 const languages = Object.entries(LANGUAGE_VERSIONS);
 
+/**
+ * Composant sélecteur de langage de programmation
+ * Menu déroulant avec versions supportées pour l'éditeur de code
+ * @param {string} language - Langage actuellement sélectionné
+ * @param {Function} onSelect - Callback de changement de langage
+ */
 const LanguageSelector = ({ language, onSelect }) => {
   const [isOpen, setIsOpen] = useState(false);
 

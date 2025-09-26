@@ -1,94 +1,83 @@
-// Imports des hooks et utilitaires React Query pour la gestion des données
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-// Hooks React pour les effets et l'état local
 import { useEffect, useState } from 'react';
-// Import des fonctions API pour les requêtes au serveur
 import { getOutgoingFriendReqs, getRecommendedUsers, getUserFriends, sendFriendRequest } from '../lib/api';
-// Composant de navigation de React Router
 import { Link } from "react-router";
-// Icônes de Lucide React pour l'interface utilisateur
 import { CheckCircleIcon, MapPinIcon, UserPlusIcon, UsersIcon } from "lucide-react";
-// Fonction utilitaire pour capitaliser les chaînes de caractères
 import { capitialize } from "../lib/utils";
-// Composants personnalisés pour l'affichage
 import FriendCard, { getLanguageFlag, getProgrammingLogo } from "../components/FriendCard";
 import NoFriendsFound from "../components/NoFriendsFound";
 
+/**
+ * Page d'accueil de l'application
+ * Affiche la liste des amis existants et les recommandations d'utilisateurs
+ * Gère les demandes d'amitié avec mise à jour temps réel du cache
+ */
 const HomePage = () => {
-  // Client React Query pour gérer le cache et les requêtes
   const queryClient = useQueryClient();
   
-  // État local pour stocker les IDs des demandes d'amis envoyées
-  // Utilise un Set pour des recherches rapides (O(1))
+  // Stockage des IDs de demandes d'amis envoyées pour optimiser les vérifications
   const [outgoingRequestsIds, setOutgoingRequestsIds] = useState(new Set());
 
-  // Requête pour récupérer la liste des amis de l'utilisateur
+  // Requête pour récupérer les amis de l'utilisateur connecté
   const { data: friends = [], isLoading: loadingFriends } = useQuery({
-    queryKey: ["friends"], // Clé unique pour identifier cette requête dans le cache
-    queryFn: getUserFriends, // Fonction qui fait l'appel API
+    queryKey: ["friends"],
+    queryFn: getUserFriends,
   });
 
-  // Requête pour récupérer les utilisateurs recommandés
+  // Requête pour les utilisateurs suggérés (excluant amis actuels et utilisateur)
   const { data: recommendedUsers = [], isLoading: loadingUsers } = useQuery({
-    queryKey: ["recommendedUsers"], // Clé différente pour éviter les conflits
+    queryKey: ["recommendedUsers"],
     queryFn: getRecommendedUsers,
   });
 
-  // Requête pour récupérer les demandes d'amis sortantes (envoyées par l'utilisateur)
+  // Requête pour les demandes d'amis sortantes en attente
   const { data: outgoingFriendRequests } = useQuery({
     queryKey: ["outgoingFriendRequests"],
     queryFn: getOutgoingFriendReqs,
   });
 
-  // Mutation pour envoyer une demande d'ami
+  // Mutation pour l'envoi de nouvelles demandes d'amitié
   const { mutate: sendRequestMutation, isPending } = useMutation({
-    mutationFn: sendFriendRequest, // Fonction qui envoie la demande
+    mutationFn: sendFriendRequest,
     onSuccess: () => {
-      // Après succès, on invalide les caches pour refraîchir les données
+      // Invalidation des caches après succès pour rafraîchissement automatique
       queryClient.invalidateQueries({ queryKey: ["outgoingFriendRequests"] });
       queryClient.invalidateQueries({ queryKey: ["recommendedUsers"] });
     },
   });
 
-  // Effet qui s'exécute quand les demandes sortantes changent
+  // Mise à jour du Set des IDs de demandes envoyées pour UI réactive
   useEffect(() => {
     const outgoingIds = new Set();
-    // Si on a des demandes sortantes
     if (outgoingFriendRequests && outgoingFriendRequests.length > 0) {
-      // On extrait les IDs des destinataires et on les met dans un Set
       outgoingFriendRequests.forEach((req) => {
         outgoingIds.add(req.recipient._id);
       });
-      // On met à jour l'état local avec ces IDs
       setOutgoingRequestsIds(outgoingIds);
     }
-  }, [outgoingFriendRequests]); // Se déclenche quand outgoingFriendRequests change
+  }, [outgoingFriendRequests]);
 
   return (
     <div className="min-h-screen p-4 sm:p-6 lg:p-8">
       <div className="container mx-auto space-y-10">
         
-        {/* En-tête de la section "Vos amis" */}
+        {/* Section des amis existants */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Vos amis</h2>
-          {/* Bouton pour accéder aux demandes d'amis reçues */}
           <Link to="/notifications" className="btn btn-outline btn-sm">
             <UsersIcon className="mr-2 size-4" />
             Demandes d'amis
           </Link>
         </div>
 
-        {/* Section d'affichage des amis */}
+        {/* Affichage conditionnel des amis selon l'état de chargement */}
         {loadingFriends ? (
-          // Spinner de chargement pendant la récupération des données
           <div className="flex justify-center py-12">
             <span className="loading loading-spinner loading-lg" />
           </div>
         ) : friends.length === 0 ? (
-          // Composant affiché quand l'utilisateur n'a pas d'amis
           <NoFriendsFound />
         ) : (
-          // Grille responsive pour afficher les cartes d'amis
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {friends.map((friend) => (
               <FriendCard key={friend._id} friend={friend} />
@@ -96,12 +85,12 @@ const HomePage = () => {
           </div>
         )}
 
-        {/* Section "Élargissez votre cercle" pour les utilisateurs recommandés */}
+        {/* Section des recommandations d'utilisateurs */}
         <section>
           <div className="mb-6 sm:mb-8">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Elargissez votre cercle</h2>
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Élargissez votre cercle</h2>
                 <p className="opacity-70">
                   Trouvez des partenaires pour coder, échanger et progresser ensemble.
                 </p>
@@ -109,14 +98,12 @@ const HomePage = () => {
             </div>
           </div>
 
-          {/* Affichage des utilisateurs recommandés */}
+          {/* Grille des utilisateurs recommandés */}
           {loadingUsers ? (
-            // Spinner pendant le chargement
             <div className="flex justify-center py-12">
               <span className="loading loading-spinner loading-lg" />
             </div>
           ) : recommendedUsers.length === 0 ? (
-            // Message quand aucun utilisateur n'est recommandé
             <div className="card bg-base-200 p-6 text-center">
               <h3 className="font-semibold text-lg mb-2">Pas de recommandations actuellement</h3>
               <p className="text-base-content opacity-70">
@@ -124,10 +111,9 @@ const HomePage = () => {
               </p>
             </div>
           ) : (
-            // Grille des utilisateurs recommandés
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {recommendedUsers.map((user) => {
-                // Vérification si une demande a déjà été envoyée à cet utilisateur
+                // Vérification de l'état des demandes pour cet utilisateur
                 const hasRequestBeenSent = outgoingRequestsIds.has(user._id);
 
                 return (
@@ -137,7 +123,7 @@ const HomePage = () => {
                   >
                     <div className="card-body p-5 space-y-4">
                       
-                      {/* Section profil utilisateur avec avatar et nom */}
+                      {/* Profil utilisateur avec avatar et informations de base */}
                       <div className="flex items-center gap-3">
                         <div className="avatar size-16 rounded-full">
                           <img src={user.profilePic} alt={user.fullName} />
@@ -145,7 +131,6 @@ const HomePage = () => {
 
                         <div>
                           <h3 className="font-semibold text-lg">{user.fullName}</h3>
-                          {/* Affichage conditionnel de la localisation */}
                           {user.location && (
                             <div className="flex items-center text-xs opacity-70 mt-1">
                               <MapPinIcon className="size-3 mr-1" />
@@ -155,7 +140,7 @@ const HomePage = () => {
                         </div>
                       </div>
 
-                      {/* Badges pour les langues native et apprise */}
+                      {/* Badges informatifs pour les langues */}
                       <div className="flex flex-wrap gap-1.5">
                         <span className="badge badge-secondary">
                           {getLanguageFlag(user.nativeLanguage)}
@@ -167,27 +152,23 @@ const HomePage = () => {
                         </span>
                       </div>
 
-                      {/* Biographie de l'utilisateur (affichage conditionnel) */}
+                      {/* Biographie utilisateur si disponible */}
                       {user.bio && <p className="text-sm opacity-70">{user.bio}</p>}
 
-                      {/* Bouton pour envoyer une demande d'ami */}
+                      {/* Bouton d'action avec état dynamique */}
                       <button
                         className={`btn w-full mt-2 ${
                           hasRequestBeenSent ? "btn-disabled" : "btn-primary"
                         }`}
-                        // Appel de la mutation pour envoyer la demande
                         onClick={() => sendRequestMutation(user._id)}
-                        // Désactivation si demande déjà envoyée ou en cours d'envoi
                         disabled={hasRequestBeenSent || isPending}
                       >
                         {hasRequestBeenSent ? (
-                          // État "demande envoyée"
                           <>
                             <CheckCircleIcon className="size-4 mr-2" />
                             Demande envoyée
                           </>
                         ) : (
-                          // État "envoyer demande"
                           <>
                             <UserPlusIcon className="size-4 mr-2" />
                             Envoyer une demande d'ami

@@ -1,18 +1,21 @@
 import { useState } from "react";
 import { Play, Loader2 } from "lucide-react";
 import { executeCode } from "../store/executeCode";
+import toast from "react-hot-toast";
 
+/**
+ * Composant de sortie et d'exécution de code
+ * Permet d'exécuter le code de l'éditeur et d'afficher les résultats
+ * Utilise react-hot-toast pour les notifications d'erreur
+ * @param {Object} editorRef - Référence à l'instance Monaco Editor
+ * @param {string} language - Langage de programmation actuel
+ */
 const Output = ({ editorRef, language }) => {
   const [output, setOutput] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isError, setIsError] = useState(false);
-  const [toast, setToast] = useState(null);
 
-  const showToast = (message, type = "error") => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 6000);
-  };
-
+  // Exécution du code via l'API externe
   const runCode = async () => {
     const sourceCode = editorRef.current.getValue();
     if (!sourceCode) return;
@@ -24,7 +27,7 @@ const Output = ({ editorRef, language }) => {
       result.stderr ? setIsError(true) : setIsError(false);
     } catch (error) {
       console.log(error);
-      showToast(error.message || "Unable to run code", "error");
+      toast.error(error.message || "Impossible d'exécuter le code");
     } finally {
       setIsLoading(false);
     }
@@ -32,22 +35,9 @@ const Output = ({ editorRef, language }) => {
 
   return (
     <div className="w-1/2">
-      {/* Toast notification */}
-      {toast && (
-        <div className="fixed top-4 right-4 z-50">
-          <div className={`px-4 py-3 rounded-md shadow-lg ${
-            toast.type === "error" 
-              ? "bg-red-600 text-white" 
-              : "bg-green-600 text-white"
-          }`}>
-            <p className="font-medium">An error occurred.</p>
-            <p className="text-sm opacity-90">{toast.message}</p>
-          </div>
-        </div>
-      )}
-
       <p className="mb-2 text-lg">Output</p>
       
+      {/* Bouton d'exécution */}
       <button
         className={`flex items-center gap-2 px-4 py-2 mb-4 border-2 border-green-500 text-green-500 rounded-md hover:bg-green-500 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
           isLoading ? "opacity-50" : ""
@@ -60,9 +50,10 @@ const Output = ({ editorRef, language }) => {
         ) : (
           <Play className="h-4 w-4" />
         )}
-        {isLoading ? "Running..." : "Run Code"}
+        {isLoading ? "Exécution..." : "Exécuter le Code"}
       </button>
 
+      {/* Zone d'affichage des résultats */}
       <div
         className={`h-[75vh] p-2 border rounded border-solid ${
           isError 
@@ -76,7 +67,7 @@ const Output = ({ editorRef, language }) => {
                 {line}
               </p>
             ))
-          : 'Click "Run Code" to see the output here'}
+          : 'Cliquez sur "Exécuter le Code" pour voir la sortie ici'}
       </div>
     </div>
   );

@@ -8,11 +8,17 @@ import { CameraIcon, LoaderIcon, MapPinIcon, SaveIcon, ShuffleIcon } from "lucid
 import { LANGUAGES } from "../constants";
 import {PROGRAMMING_LANGUAGES} from '../constants/index';
 
+/**
+ * Page de configuration initiale du profil utilisateur
+ * Formulaire obligatoire après inscription pour compléter les informations
+ * Génération d'avatar aléatoire et validation des champs requis
+ */
 const OnborardingPage = () => {
   
   const { authUser } = useAuthUser();
   const queryClient= useQueryClient();
   
+  // État du formulaire avec données utilisateur existantes comme valeurs par défaut
   const [formState, setFormState] = useState({
     fullName: authUser?.fullName || "",
     bio: authUser?.bio || "",
@@ -22,24 +28,32 @@ const OnborardingPage = () => {
     profilePic: authUser?.profilePic || "",
   });
 
+  // Mutation pour soumettre les données de configuration
   const { mutate: onboardingMutation, isPending } = useMutation({
     mutationFn: completeOnboarding,
     onSuccess: () => {
       toast.success("Profil mis à jour avec succès");
+      // Invalidation du cache pour forcer la mise à jour des données utilisateur
       queryClient.invalidateQueries({ queryKey: ["authUser"] });
     },
-
     onError:(error)=> { 
       toast.error(error.response.data.message);
     },
   });
 
+  /**
+   * Gestionnaire de soumission du formulaire
+   * Valide et envoie les données de configuration du profil
+   */
   const handleSubmit = (e) => {
     e.preventDefault();
-    
     onboardingMutation(formState);
   }
 
+  /**
+   * Générateur d'avatar aléatoire
+   * Utilise l'API Iran Avatar pour créer un avatar unique
+   */
   const handleRandomAvatar = () => {
     const idx = Math.floor(Math.random() * 100) + 1;
     const randomAvatar = `https://avatar.iran.liara.run/public/${idx}.png`;
@@ -55,10 +69,9 @@ const OnborardingPage = () => {
           <h1 className="text-2xl sm:text-3xl font-bold text-center mb-6">Complétez votre profil</h1>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* CONTAINER PHOTO DE PROFIL */}
-
+            {/* Section de gestion de la photo de profil */}
             <div className="flex flex-col items-center justify-center space-y-4">
-              {/* PREVISUALISATION IMAGE */}
+              {/* Prévisualisation de l'avatar */}
               <div className="size-32 rounded-full bg-base-300 overflow-hidden">
                 {formState.profilePic ? (
                   <img
@@ -73,7 +86,7 @@ const OnborardingPage = () => {
                 )}
               </div>
 
-              {/* BOUTON GENERER UN AVATAR RANDOM */}
+              {/* Bouton de génération d'avatar aléatoire */}
               <div className="flex items-centre gap-2">
                 <button type="button" onClick={handleRandomAvatar} className="btn btn-accent">
                   <ShuffleIcon className="size-4 mr-2" />
@@ -81,7 +94,8 @@ const OnborardingPage = () => {
                 </button>
               </div>
             </div>
-            {/* NOM */}
+
+            {/* Champ nom d'utilisateur */}
             <div className="form-control">
               <label className="label">
                 <span className="label-text">Nom d'utilisateur</span>
@@ -96,7 +110,7 @@ const OnborardingPage = () => {
               />
             </div>
 
-            {/* BIO */}
+            {/* Zone de texte pour la biographie */}
             <div className="form-control">
               <label className="label">
                 <span className="label-text">Bio</span>
@@ -108,13 +122,11 @@ const OnborardingPage = () => {
                 className="textarea textarea-bordered h-24"
                 placeholder="Parlez-nous un peu de vous..."
               />
-                  
-                
             </div>
 
-            {/* LANGUES */}
+            {/* Sélecteurs de langues en grille responsive */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Langue parlée */}
+              {/* Langue native parlée */}
               <div className="form-control">
                 <label className="label">
                   <span className="label-text">Langue parlée</span>
@@ -134,7 +146,7 @@ const OnborardingPage = () => {
                 </select>
               </div>
 
-              {/* Langage en apprentissage */}
+              {/* Langage de programmation en apprentissage */}
               <div className="form-control">
                 <label className="label">
                   <span className="label-text">Langage en apprentissage</span>
@@ -155,13 +167,13 @@ const OnborardingPage = () => {
               </div>
             </div>
 
-            {/* LOCALISATION */}
+            {/* Champ de localisation avec icône */}
             <div className="form-control">
               <label className="label">
                 <span className="label-text">Localisation</span>
               </label>
               <div className="relative">
-                <MapPinIcon className="absolute top-1/2 transform -translate-y-1/2 left-3 size-5 text-base-content opacity-7O" />
+                <MapPinIcon className="absolute top-1/2 transform -translate-y-1/2 left-3 size-5 text-base-content opacity-70" />
                 <input
                   type="text"
                   name="location"
@@ -173,8 +185,7 @@ const OnborardingPage = () => {
               </div>
             </div>
 
-            {/* SUBMIT BUTTON */}
-
+            {/* Bouton de soumission avec état de chargement */}
             <button className="btn btn-primary w-full" disabled={isPending} type="submit" >
               {!isPending?(
                 <>

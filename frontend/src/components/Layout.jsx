@@ -1,6 +1,12 @@
 import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
 
+/**
+ * Composant de mise en page principal de l'application
+ * Structure avec sidebar optionnelle et navbar fixe
+ * @param {React.ReactNode} children - Contenu principal à afficher
+ * @param {boolean} showSidebar - Affichage conditionnel de la sidebar
+ */
 const Layout = ({ children, showSidebar = false }) => {
   return (
     <div className="min-h-screen">
@@ -17,4 +23,4 @@ const Layout = ({ children, showSidebar = false }) => {
   )
 }
 
-export default Layout
+export default Layout;

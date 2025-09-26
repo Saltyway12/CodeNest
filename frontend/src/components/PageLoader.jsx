@@ -1,6 +1,10 @@
 import { LoaderIcon } from "lucide-react"
 import { useThemeStore } from "../store/useThemeStore";
 
+/**
+ * Composant de chargement global de page
+ * Écran de chargement avec thème adaptatif pour les transitions d'application
+ */
 const PageLoader = () => {
     const { theme } = useThemeStore();
     return (
@@ -10,4 +14,4 @@ const PageLoader = () => {
   )
 }
 
-export default PageLoader
+export default PageLoader;

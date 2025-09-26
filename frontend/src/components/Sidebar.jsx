@@ -2,15 +2,19 @@ import { Link, useLocation } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
 import {BellIcon, HomeIcon, MessageSquareCode, UsersIcon} from 'lucide-react';
 
+/**
+ * Composant sidebar de navigation latérale
+ * Menu principal avec logo, navigation et profil utilisateur
+ * Affiché uniquement sur écrans larges (lg+)
+ */
 const Sidebar = () => {
   const { authUser } = useAuthUser();
   const location = useLocation();
   const currentPath = location.pathname;
 
-
-
   return (
     <aside className="w-64 bg-base-200 border-r border-base-300 hidden lg:flex flex-col h-screen sticky top-0">
+      {/* En-tête avec logo de l'application */}
       <div className="p-5 border-b border-base-300">
         <Link to="/" className="flex items-center gap-2.5">
           <MessageSquareCode className="size-9 text-primary" />
@@ -20,6 +24,7 @@ const Sidebar = () => {
         </Link>
       </div>
     
+      {/* Navigation principale avec liens actifs */}
       <nav className="flex-1 p-4 space-y-1">
         <Link
           to="/"
@@ -52,7 +57,7 @@ const Sidebar = () => {
         </Link>
       </nav>
 
-      {/* USER PROFILE SECTION */}
+      {/* Section profil utilisateur en bas de la sidebar */}
       <div className="p-4 border-t border-base-300 mt-auto">
         <div className="flex items-center gap-3">
           <div className="avatar">
@@ -73,4 +78,4 @@ const Sidebar = () => {
   );
 };
 
-export default Sidebar
+export default Sidebar;

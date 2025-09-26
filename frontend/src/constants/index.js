@@ -1,3 +1,5 @@
+// Configuration des thèmes visuels disponibles pour l'interface utilisateur
+// Chaque thème contient un nom, un libellé d'affichage et une palette de couleurs
 export const THEMES = [
 	{
 		name: "light",
@@ -161,6 +163,8 @@ export const THEMES = [
 	},
 ];
 
+// Liste des langues naturelles supportées pour l'apprentissage linguistique
+// Utilisée dans les sélecteurs de langue maternelle et d'apprentissage
 export const LANGUAGES = [
 	"English",
 	"Español",
@@ -193,6 +197,8 @@ export const LANGUAGES = [
 	"Български",
 ];
 
+// Mapping des noms de langues vers les codes de drapeaux nationaux
+// Utilisé pour l'affichage des icônes de drapeaux dans l'interface
 export const LANGUAGE_TO_FLAG = {
 	english: "gb",
 	español: "es",
@@ -225,6 +231,8 @@ export const LANGUAGE_TO_FLAG = {
 	български: "bg",
 };
 
+// Liste des langages de programmation supportés dans l'éditeur de code
+// Utilisée pour les sélecteurs et la coloration syntaxique
 export const PROGRAMMING_LANGUAGES = [
 	"JavaScript",
 	"Python",
@@ -262,6 +270,8 @@ export const PROGRAMMING_LANGUAGES = [
 	"Svelte",
 ];
 
+// Mapping des langages de programmation vers leurs icônes respectives
+// Utilise le CDN DevIcons pour l'affichage des logos de technologies
 export const PROGRAMMING_LANGUAGE_TO_ICON = {
 	javascript:
 		"https://cdn.jsdelivr.net/gh/devicons/devicon/icons/javascript/javascript-original.svg",
