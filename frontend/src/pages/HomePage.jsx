@@ -63,10 +63,12 @@ const HomePage = () => {
         
         {/* Section des amis existants */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Vos amis</h2>
             <p className="opacity-70">
               Ouvrez le chat pour échanger, coder et progresser ensemble.
             </p>
+          </div>
           <Link to="/notifications" className="btn btn-outline btn-sm">
             <UsersIcon className="mr-2 size-4" />
             Demandes d'amis
