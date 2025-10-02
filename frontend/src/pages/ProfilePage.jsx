@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import useAuthUser from "../hooks/useAuthUser";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
@@ -14,13 +15,14 @@ const ProfilePage = () => {
   
   const { authUser } = useAuthUser();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   
   // État du formulaire avec données utilisateur existantes comme valeurs par défaut
   const [formState, setFormState] = useState({
     fullName: authUser?.fullName || "",
     bio: authUser?.bio || "",
     nativeLanguage: authUser?.nativeLanguage || "",
-    learningLanguage: authUser?.learningLanguage || "",
+    learningLanguages: authUser?.learningLanguages || [], // Tableau au lieu de string
     location: authUser?.location || "",
     profilePic: authUser?.profilePic || "",
   });
@@ -32,11 +34,35 @@ const ProfilePage = () => {
       toast.success("Profil mis à jour avec succès");
       // Invalidation du cache pour forcer la mise à jour des données utilisateur
       queryClient.invalidateQueries({ queryKey: ["authUser"] });
+      // Redirection vers la page d'accueil après la mise à jour
+      navigate("/");
     },
     onError: (error) => { 
       toast.error(error.response.data.message);
     },
   });
+
+  /**
+   * Gère la sélection/désélection des langages d'apprentissage
+   */
+  const toggleLearningLanguage = (language) => {
+    const normalizedLang = language.toLowerCase();
+    const currentLanguages = formState.learningLanguages || [];
+    
+    if (currentLanguages.includes(normalizedLang)) {
+      // Retirer le langage s'il est déjà sélectionné
+      setFormState({
+        ...formState,
+        learningLanguages: currentLanguages.filter(lang => lang !== normalizedLang)
+      });
+    } else {
+      // Ajouter le langage
+      setFormState({
+        ...formState,
+        learningLanguages: [...currentLanguages, normalizedLang]
+      });
+    }
+  };
 
   /**
    * Gestionnaire de soumission du formulaire
@@ -144,26 +170,43 @@ const ProfilePage = () => {
                   ))}
                 </select>
               </div>
+            </div>
 
-              {/* Langage de programmation en apprentissage */}
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text">Langage en apprentissage</span>
-                </label>
-                <select
-                  name="learningLanguage"
-                  value={formState.learningLanguage}
-                  onChange={(e) => setFormState({ ...formState, learningLanguage: e.target.value })}
-                  className="select select-bordered w-full"
-                >
-                  <option value="">Choisissez votre langage</option>
-                  {PROGRAMMING_LANGUAGES.map((lang) => (
-                    <option key={`learning-${lang}`} value={lang.toLowerCase()}>
+            {/* Langages de programmation en apprentissage - sélection multiple */}
+            <div className="form-control">
+              <label className="label">
+                <span className="label-text">Langages en apprentissage</span>
+                <span className="label-text-alt text-base-content opacity-60">
+                  Sélectionnez un ou plusieurs langages
+                </span>
+              </label>
+              <div className="flex flex-wrap gap-2 p-4 bg-base-300 rounded-lg min-h-[100px]">
+                {PROGRAMMING_LANGUAGES.map((lang) => {
+                  const isSelected = formState.learningLanguages?.includes(lang.toLowerCase());
+                  return (
+                    <button
+                      key={`learning-${lang}`}
+                      type="button"
+                      onClick={() => toggleLearningLanguage(lang)}
+                      className={`badge badge-lg gap-2 cursor-pointer transition-all ${
+                        isSelected 
+                          ? 'badge-primary' 
+                          : 'badge-outline hover:badge-primary hover:badge-outline'
+                      }`}
+                    >
                       {lang}
-                    </option>
-                  ))}
-                </select>
+                      {isSelected && <span className="text-xs">✓</span>}
+                    </button>
+                  );
+                })}
               </div>
+              {formState.learningLanguages?.length > 0 && (
+                <div className="label">
+                  <span className="label-text-alt text-primary">
+                    {formState.learningLanguages.length} langage(s) sélectionné(s)
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Champ de localisation avec icône */}
@@ -184,20 +227,37 @@ const ProfilePage = () => {
               </div>
             </div>
 
-            {/* Bouton de soumission avec état de chargement */}
-            <button className="btn btn-primary w-full" disabled={isPending} type="submit">
-              {!isPending ? (
-                <>
-                  <SaveIcon className="size-5 mr-2" />
-                  Enregistrer les modifications
-                </>
-              ) : (
-                <>
-                  <LoaderIcon className="animate-spin size-5 mr-2" />
-                  Enregistrement...
-                </>
-              )}
-            </button>
+            {/* Boutons d'action */}
+            <div className="flex gap-3 mt-2">
+              {/* Bouton Quitter sans sauvegarder */}
+              <button 
+                type="button" 
+                onClick={() => navigate("/")} 
+                className="btn btn-ghost flex-1"
+                disabled={isPending}
+              >
+                Quitter sans sauvegarder
+              </button>
+
+              {/* Bouton Enregistrer */}
+              <button 
+                type="submit" 
+                className="btn btn-primary flex-1" 
+                disabled={isPending}
+              >
+                {!isPending ? (
+                  <>
+                    <SaveIcon className="size-5 mr-2" />
+                    Enregistrer
+                  </>
+                ) : (
+                  <>
+                    <LoaderIcon className="animate-spin size-5 mr-2" />
+                    Enregistrement...
+                  </>
+                )}
+              </button>
+            </div>
           </form>
 
         </div>
