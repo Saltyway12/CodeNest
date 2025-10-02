@@ -67,6 +67,7 @@ const OnborardingPage = () => {
       <div className="card bg-base-200 w-full max-w-3xl shadow-xl">
         <div className="card-body p-6 sm:p-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-center mb-6">Complétez votre profil</h1>
+          <p>Avant de commencer votre aventure dans le nid, merci de compléter votre profil. Tous les champs sont requis.</p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Section de gestion de la photo de profil */}
