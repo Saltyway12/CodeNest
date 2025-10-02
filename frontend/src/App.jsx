@@ -111,6 +111,17 @@ const App = () => {
             )
           }
         />
+        {/* Route de modification du profil - accessible après onboarding */}
+        <Route
+          path="/profil"
+          element={
+          isAuthenticated ? (
+            <ProfilePage />
+          ) : (
+            <Navigate to="/connexion" />
+          )
+          }
+        />
       </Routes>
 
       {/* Composant global pour les notifications toast */}

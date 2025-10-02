@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router';
 import useAuthUser from '../hooks/useAuthUser';
 import useLogout from '../hooks/useLogout';
-import { BellIcon, LogOutIcon, MessageSquareCode } from 'lucide-react';
+import {BellIcon, LogOutIcon, MessageSquareCode, UsersIcon} from 'lucide-react';
 import ThemeSelector from "./ThemeSelector";
 
 /**
@@ -41,12 +41,12 @@ const Navbar = () => {
 
           <ThemeSelector />
 
-          {/* Avatar utilisateur */}
-          <div className="avatar">
-            <div className="w-9 rounded-full">
-              <img src={authUser?.profilePic} alt="User Avatar" rel="noreferrer" />
+          {/* Lien vers le profil */}
+          <Link to="/profil" className="avatar cursor-pointer hover:opacity-80 transition-opacity">
+            <div className="w-9 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2 ring-opacity-0 hover:ring-opacity-100 transition-all">
+              <img src={authUser?.profilePic} alt="User Avatar" />
             </div>
-          </div>
+          </Link>
 
           {/* Bouton de déconnexion */}
           <button className="btn btn-ghost btn-circle" onClick={logoutMutation}>
