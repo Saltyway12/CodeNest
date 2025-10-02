@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router";
-import useAuthUser from "../hooks/useAuthUser";
-import { useQuery } from "@tanstack/react-query";
-import { getStreamToken } from "../lib/api";
+import { useStreamChat } from "../context/StreamChatContext";
 
 import {
   Channel,
@@ -13,13 +11,11 @@ import {
   Thread,
   Window,
 } from "stream-chat-react";
-import { StreamChat } from "stream-chat";
 import toast from "react-hot-toast";
 
 import ChatLoader from "../components/ChatLoader";
 import CallButton from "../components/CallButton";
-
-const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
+import useAuthUser from "../hooks/useAuthUser";
 
 /**
  * Page de chat intégrée avec Stream Chat SDK
@@ -28,64 +24,44 @@ const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
  */
 const ChatPage = () => {
   const { id: targetUserId } = useParams();
-
-  const [chatClient, setChatClient] = useState(null);
+  const { authUser } = useAuthUser();
+  
+  // Récupération du client global depuis le contexte
+  const { chatClient } = useStreamChat();
+  
   const [channel, setChannel] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const { authUser } = useAuthUser();
-
-  // Récupération du token d'authentification Stream
-  const { data: tokenData } = useQuery({
-    queryKey: ["streamToken"],
-    queryFn: getStreamToken,
-    enabled: !!authUser, // Exécution conditionnelle basée sur la présence de l'utilisateur
-  });
-
-  // Initialisation du client de chat et du canal de communication
+  // Initialisation du canal de communication
   useEffect(() => {
-    const initChat = async () => {
-      if (!tokenData?.token || !authUser) return;
+    const initChannel = async () => {
+      if (!chatClient || !authUser) return;
 
       try {
-        console.log("Initialisation du client stream chat...");
-
-        const client = StreamChat.getInstance(STREAM_API_KEY);
-
-        // Connexion de l'utilisateur au service Stream Chat
-        await client.connectUser(
-          {
-            id: authUser._id,
-            name: authUser.fullName,
-            image: authUser.profilePic,
-          },
-          tokenData.token
-        );
+        console.log("Initialisation du canal...");
 
         // Génération d'un ID de canal unique et ordonné pour la conversation
-        // Utilise le tri pour assurer la cohérence peu importe qui initie le chat
         const channelId = [authUser._id, targetUserId].sort().join("-");
 
         // Création du canal de messagerie avec les participants
-        const currChannel = client.channel("messaging", channelId, {
+        const currChannel = chatClient.channel("messaging", channelId, {
           members: [authUser._id, targetUserId],
         });
 
         // Surveillance du canal pour recevoir les messages en temps réel
         await currChannel.watch();
 
-        setChatClient(client);
         setChannel(currChannel);
       } catch (error) {
-        console.error("Erreur d'initialisation du chat:", error);
+        console.error("Erreur d'initialisation du canal:", error);
         toast.error("Impossible de se connecter au chat. Retentez un peu plus tard.");
       } finally {
         setLoading(false);
       }
     };
 
-    initChat();
-  }, [tokenData, authUser, targetUserId]);
+    initChannel();
+  }, [chatClient, authUser, targetUserId]);
 
   /**
    * Gestionnaire d'appel vidéo
@@ -130,4 +106,5 @@ const ChatPage = () => {
     </div>
   );
 };
+
 export default ChatPage;

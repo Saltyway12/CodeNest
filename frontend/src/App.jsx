@@ -13,6 +13,7 @@ import PageLoader from "./components/PageLoader.jsx";
 import useAuthUser from "./hooks/useAuthUser.js";
 import Layout from "./components/Layout.jsx";
 import { useThemeStore } from "./store/useThemeStore.js";
+import { StreamChatProvider } from "./context/StreamChatContext.jsx";
 
 /**
  * Composant racine de l'application
@@ -30,100 +31,104 @@ const App = () => {
 
   return (
     <div className="min-h-screen" data-theme={theme}>
-      <Routes>
-        {/* Route principale - accueil pour utilisateurs connectés et configurés */}
-        <Route
-          path="/"
-          element={
-            isAuthenticated && isOnboarded ? (
-              <Layout showSidebar={true}>
-                <HomePage />
-              </Layout>
-            ) : (
-              <Navigate to={!isAuthenticated? "/connexion": "/configuration-profil"} />
-            )
-          }
-        />
-
-        {/* Route d'inscription - accessible uniquement aux non-connectés */}
-        <Route path="/inscription" element={
-            !isAuthenticated ? <SignUpPage /> : <Navigate to={isOnboarded ? "/" : "/configuration-profil"} />
-          }
-        />
-
-        {/* Route de connexion - accessible uniquement aux non-connectés */}
-        <Route path="/connexion" element={
-            !isAuthenticated ? <LoginPage /> : <Navigate to={isOnboarded ? "/" : "/configuration-profil"} />
-          }
-        />
-
-        {/* Route des notifications - utilisateurs connectés et configurés uniquement */}
-        <Route
-          path="/notifications"
-          element={
-            isAuthenticated && isOnboarded ? (
-              <Layout showSidebar={true}>
-                <NotificationsPage />
-              </Layout>
-            ) : (
-              <Navigate to={!isAuthenticated ? "/connexion" : "/configuration-profil"} />
-            )
-          }
-        />
-
-        {/* Route d'appel vidéo - sans sidebar pour interface plein écran */}
-        <Route
-          path="/appel/:id"
-          element={
-            isAuthenticated && isOnboarded ? (
-              <CallPage />
-            ) : (
-              <Navigate to={!isAuthenticated ? "/connexion" : "/configuration-profil"} />
-            )
-          }
-        />
-
-        {/* Route de chat - sidebar désactivée pour maximiser l'espace de conversation */}
-        <Route
-          path="/chat/:id"
-          element={
-            isAuthenticated && isOnboarded ? (
-              <Layout showSidebar={false}>
-                <ChatPage />
-              </Layout>
-            ) : (
-              <Navigate to={!isAuthenticated ? "/connexion" : "/configuration-profil"} />
-            )
-          }
-        />
-
-        {/* Route de configuration initiale du profil - obligatoire après inscription */}
-        <Route
-          path="/configuration-profil"
-          element={
-            isAuthenticated ? (
-              !isOnboarded ? (
-                <OnborardingPage />
+      {/* Provider Stream Chat global - enveloppe toute l'application */}
+      <StreamChatProvider>
+        <Routes>
+          {/* Route principale - accueil pour utilisateurs connectés et configurés */}
+          <Route
+            path="/"
+            element={
+              isAuthenticated && isOnboarded ? (
+                <Layout showSidebar={true}>
+                  <HomePage />
+                </Layout>
               ) : (
-                <Navigate to="/" />
+                <Navigate to={!isAuthenticated? "/connexion": "/configuration-profil"} />
               )
+            }
+          />
+
+          {/* Route d'inscription - accessible uniquement aux non-connectés */}
+          <Route path="/inscription" element={
+              !isAuthenticated ? <SignUpPage /> : <Navigate to={isOnboarded ? "/" : "/configuration-profil"} />
+            }
+          />
+
+          {/* Route de connexion - accessible uniquement aux non-connectés */}
+          <Route path="/connexion" element={
+              !isAuthenticated ? <LoginPage /> : <Navigate to={isOnboarded ? "/" : "/configuration-profil"} />
+            }
+          />
+
+          {/* Route des notifications - utilisateurs connectés et configurés uniquement */}
+          <Route
+            path="/notifications"
+            element={
+              isAuthenticated && isOnboarded ? (
+                <Layout showSidebar={true}>
+                  <NotificationsPage />
+                </Layout>
+              ) : (
+                <Navigate to={!isAuthenticated ? "/connexion" : "/configuration-profil"} />
+              )
+            }
+          />
+
+          {/* Route d'appel vidéo - sans sidebar pour interface plein écran */}
+          <Route
+            path="/appel/:id"
+            element={
+              isAuthenticated && isOnboarded ? (
+                <CallPage />
+              ) : (
+                <Navigate to={!isAuthenticated ? "/connexion" : "/configuration-profil"} />
+              )
+            }
+          />
+
+          {/* Route de chat - sidebar désactivée pour maximiser l'espace de conversation */}
+          <Route
+            path="/chat/:id"
+            element={
+              isAuthenticated && isOnboarded ? (
+                <Layout showSidebar={false}>
+                  <ChatPage />
+                </Layout>
+              ) : (
+                <Navigate to={!isAuthenticated ? "/connexion" : "/configuration-profil"} />
+              )
+            }
+          />
+
+          {/* Route de configuration initiale du profil - obligatoire après inscription */}
+          <Route
+            path="/configuration-profil"
+            element={
+              isAuthenticated ? (
+                !isOnboarded ? (
+                  <OnborardingPage />
+                ) : (
+                  <Navigate to="/" />
+                )
+              ) : (
+                <Navigate to="/connexion" />
+              )
+            }
+          />
+
+          {/* Route de modification du profil - accessible après onboarding */}
+          <Route
+            path="/profil"
+            element={
+            isAuthenticated ? (
+              <ProfilePage />
             ) : (
               <Navigate to="/connexion" />
             )
-          }
-        />
-        {/* Route de modification du profil - accessible après onboarding */}
-        <Route
-          path="/profil"
-          element={
-          isAuthenticated ? (
-            <ProfilePage />
-          ) : (
-            <Navigate to="/connexion" />
-          )
-          }
-        />
-      </Routes>
+            }
+          />
+        </Routes>
+      </StreamChatProvider>
 
       {/* Composant global pour les notifications toast */}
       <Toaster/>
