@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router';
 import useAuthUser from '../hooks/useAuthUser';
 import useLogout from '../hooks/useLogout';
-import {BellIcon, LogOutIcon, MessageSquareCode, UsersIcon} from 'lucide-react';
+import {BellIcon, LogOutIcon, MessageSquareCode} from 'lucide-react';
 import ThemeSelector from "./ThemeSelector";
 
 /**
@@ -16,45 +16,49 @@ const Navbar = () => {
   const { logoutMutation } = useLogout();
 
   return (
-    <nav className="bg-base-200 border-b border-base-300 sticky top-0 z-30 h-16 flex items-center">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-end w-full">
+    <nav className="bg-base-200 border-b border-base-300 sticky top-0 z-30">
+      <div className="px-4 sm:px-6 lg:px-8 py-5 flex items-center">
+        <div className="flex items-center justify-between w-full">
           {/* Logo visible uniquement en page de chat */}
           {isChatPage && (
-            <div className="pl-5">
+            <div className="flex-shrink-0">
               <Link to="/" className="flex items-center gap-2.5">
                 <MessageSquareCode className="size-9 text-primary" />
-                <span className="text-3xl font-bold font-mono bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary  tracking-wider">
+                <span className="text-3xl font-bold font-mono bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary tracking-wider">
                   CodeNest
                 </span>
               </Link>
             </div>
           )}
 
-          <div className="flex items-center gap-3 sm:gap-4 ml-auto">
-            <Link to={"/notifications"}>
+          {/* Contrôles à droite avec espacement uniforme */}
+          <div className="flex items-center gap-2 ml-auto">
+            {/* Bouton Notifications */}
+            <Link to="/notifications">
               <button className="btn btn-ghost btn-circle">
-                <BellIcon className="h-6 w-6 text-base-content opacity-70" />
+                <BellIcon className="size-5 text-base-content opacity-70" />
               </button>
             </Link>
+
+            {/* Sélecteur de thème */}
+            <ThemeSelector />
+
+            {/* Avatar utilisateur cliquable */}
+            <Link to="/profil" className="avatar cursor-pointer hover:opacity-80 transition-opacity">
+              <div className="w-9 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2 ring-opacity-0 hover:ring-opacity-100 transition-all">
+                <img src={authUser?.profilePic} alt="User Avatar" />
+              </div>
+            </Link>
+
+            {/* Bouton de déconnexion */}
+            <button className="btn btn-ghost btn-circle" onClick={logoutMutation}>
+              <LogOutIcon className="size-5 text-base-content opacity-70" />
+            </button>
           </div>
-
-          <ThemeSelector />
-
-          {/* Lien vers le profil */}
-          <Link to="/profil" className="avatar cursor-pointer hover:opacity-80 transition-opacity">
-            <div className="w-9 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2 ring-opacity-0 hover:ring-opacity-100 transition-all">
-              <img src={authUser?.profilePic} alt="User Avatar" />
-            </div>
-          </Link>
-
-          {/* Bouton de déconnexion */}
-          <button className="btn btn-ghost btn-circle" onClick={logoutMutation}>
-            <LogOutIcon className="h-6 w-6 text-base-content opacity-70" />
-          </button>
         </div>
       </div>
     </nav>
   );
 };
+
 export default Navbar;
