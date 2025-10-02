@@ -33,9 +33,9 @@ const Sidebar = () => {
           }
         >
           <HomeIcon className="size-5 text-base-content opacity-70" />
-          <span>Acceuil</span>
+          <span>Accueil</span>
         </Link>
-        
+
         <Link
           to="/notifications"
           className={
