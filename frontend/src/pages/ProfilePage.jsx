@@ -22,7 +22,7 @@ const ProfilePage = () => {
     fullName: authUser?.fullName || "",
     bio: authUser?.bio || "",
     nativeLanguage: authUser?.nativeLanguage || "",
-    learningLanguages: authUser?.learningLanguages || [], // Tableau au lieu de string
+    learningLanguage: authUser?.learningLanguage || "",
     location: authUser?.location || "",
     profilePic: authUser?.profilePic || "",
   });
@@ -34,35 +34,13 @@ const ProfilePage = () => {
       toast.success("Profil mis à jour avec succès");
       // Invalidation du cache pour forcer la mise à jour des données utilisateur
       queryClient.invalidateQueries({ queryKey: ["authUser"] });
-      // Redirection vers la page d'accueil après la mise à jour
+      // Redirection vers la page d'accueil
       navigate("/");
     },
     onError: (error) => { 
       toast.error(error.response.data.message);
     },
   });
-
-  /**
-   * Gère la sélection/désélection des langages d'apprentissage
-   */
-  const toggleLearningLanguage = (language) => {
-    const normalizedLang = language.toLowerCase();
-    const currentLanguages = formState.learningLanguages || [];
-    
-    if (currentLanguages.includes(normalizedLang)) {
-      // Retirer le langage s'il est déjà sélectionné
-      setFormState({
-        ...formState,
-        learningLanguages: currentLanguages.filter(lang => lang !== normalizedLang)
-      });
-    } else {
-      // Ajouter le langage
-      setFormState({
-        ...formState,
-        learningLanguages: [...currentLanguages, normalizedLang]
-      });
-    }
-  };
 
   /**
    * Gestionnaire de soumission du formulaire
@@ -170,43 +148,26 @@ const ProfilePage = () => {
                   ))}
                 </select>
               </div>
-            </div>
 
-            {/* Langages de programmation en apprentissage - sélection multiple */}
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text">Langages en apprentissage</span>
-                <span className="label-text-alt text-base-content opacity-60">
-                  Sélectionnez un ou plusieurs langages
-                </span>
-              </label>
-              <div className="flex flex-wrap gap-2 p-4 bg-base-300 rounded-lg min-h-[100px]">
-                {PROGRAMMING_LANGUAGES.map((lang) => {
-                  const isSelected = formState.learningLanguages?.includes(lang.toLowerCase());
-                  return (
-                    <button
-                      key={`learning-${lang}`}
-                      type="button"
-                      onClick={() => toggleLearningLanguage(lang)}
-                      className={`badge badge-lg gap-2 cursor-pointer transition-all ${
-                        isSelected 
-                          ? 'badge-primary' 
-                          : 'badge-outline hover:badge-primary hover:badge-outline'
-                      }`}
-                    >
+              {/* Langage de programmation en apprentissage */}
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">Langage en apprentissage</span>
+                </label>
+                <select
+                  name="learningLanguage"
+                  value={formState.learningLanguage}
+                  onChange={(e) => setFormState({ ...formState, learningLanguage: e.target.value })}
+                  className="select select-bordered w-full"
+                >
+                  <option value="">Choisissez votre langage</option>
+                  {PROGRAMMING_LANGUAGES.map((lang) => (
+                    <option key={`learning-${lang}`} value={lang.toLowerCase()}>
                       {lang}
-                      {isSelected && <span className="text-xs">✓</span>}
-                    </button>
-                  );
-                })}
+                    </option>
+                  ))}
+                </select>
               </div>
-              {formState.learningLanguages?.length > 0 && (
-                <div className="label">
-                  <span className="label-text-alt text-primary">
-                    {formState.learningLanguages.length} langage(s) sélectionné(s)
-                  </span>
-                </div>
-              )}
             </div>
 
             {/* Champ de localisation avec icône */}
