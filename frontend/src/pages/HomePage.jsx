@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowRight as ArrowRightIcon,
@@ -63,6 +63,8 @@ const HomePage = () => {
     },
   });
 
+  const hasFriends = useMemo(() => friends.length > 0, [friends.length]);
+
   useEffect(() => {
     const nextIds = new Set();
     outgoingFriendRequests?.forEach((req) => {
@@ -85,15 +87,13 @@ const HomePage = () => {
   const handleOpenFeatures = () => navigate("/fonctionnalites");
 
   const handleOpenMessages = () => {
-    if (friends.length > 0) {
+    if (hasFriends) {
       navigate(`/chat/${friends[0]._id}`);
       return;
     }
 
     navigate("/notifications");
   };
-
-  const hasFriends = friends.length > 0;
 
   return (
     <div className="min-h-screen p-4 sm:p-6 lg:p-8">
