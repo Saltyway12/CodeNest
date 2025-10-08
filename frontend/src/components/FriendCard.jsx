@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 import { LANGUAGE_TO_FLAG, PROGRAMMING_LANGUAGE_TO_ICON } from "../constants";
 
 /**

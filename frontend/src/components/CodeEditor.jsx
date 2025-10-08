@@ -3,7 +3,7 @@ import { Editor } from "@monaco-editor/react";
 import LanguageSelector from "./LanguageSelector";
 import { CODE_SNIPPETS } from "../constants/constants";
 import Output from "./Output";
-import { useParams } from "react-router";
+import { useParams } from "react-router-dom";
 import { useCollaborativeEditor } from "../hooks/useCollaborativeEditor";
 
 /**
@@ -22,24 +22,32 @@ const CodeEditor = () => {
     connectionStatus,
     participantCount,
     sendDeltaChange,
+    sendLanguageChange,
     isApplyingRemoteChange,
     setApplyingRemoteChange,
     setOnInitialContent,
     setOnRemoteChange,
+    setOnRemoteLanguageChange,
     reconnect,
   } = useCollaborativeEditor(callId);
 
   // Configuration du callback pour la réception du contenu initial
   useEffect(() => {
-    setOnInitialContent((content) => {
+    setOnInitialContent((initialState) => {
       if (!editorRef.current || !isEditorReady) {
         console.warn("⚠️ Editor pas encore prêt pour le contenu initial");
         return;
       }
-      
-      console.log("📥 Réception contenu initial:", content);
+
+      const incomingLanguage = initialState?.language || language;
+
+      if (incomingLanguage && incomingLanguage !== language) {
+        setLanguage(incomingLanguage);
+      }
+
+      console.log("📥 Réception contenu initial:", initialState?.content);
       setApplyingRemoteChange(true);
-      
+
       try {
         const editor = editorRef.current;
         const model = editor.getModel();
@@ -49,9 +57,13 @@ const CodeEditor = () => {
           return;
         }
         
-        const initialContent = content || CODE_SNIPPETS[language] || "";
+        const resolvedLanguage = incomingLanguage || language;
+        const initialContent =
+          typeof initialState?.content === "string"
+            ? initialState.content
+            : CODE_SNIPPETS[resolvedLanguage] || "";
         model.setValue(initialContent);
-        
+
         console.log("✅ Contenu initial appliqué");
       } catch (error) {
         console.error("❌ Erreur application contenu initial:", error);
@@ -160,8 +172,11 @@ const CodeEditor = () => {
   // Gestionnaire de changement de langage de programmation
   const onSelect = (lang) => {
     console.log("🔄 Changement de langage:", lang);
+
+    if (lang === language) return;
+
     setLanguage(lang);
-    
+
     if (!editorRef.current || !isEditorReady) {
       console.warn("⚠️ Editor pas encore prêt pour changement langage");
       return;
@@ -196,10 +211,11 @@ const CodeEditor = () => {
         rangeLength: currentContent.length,
         text: newSnippet,
       }];
-      
+
       console.log("📤 Envoi changement langage:", changeData);
       sendDeltaChange(changeData);
-      
+      sendLanguageChange(lang);
+
     } catch (error) {
       console.error("❌ Erreur changement langage:", error);
     }
@@ -208,10 +224,10 @@ const CodeEditor = () => {
   // Utilitaires pour l'affichage du statut de connexion
   const getStatusColor = (status) => {
     switch (status) {
-      case "connected": return "text-green-500";
-      case "connecting": return "text-yellow-500";
-      case "error": return "text-red-500";
-      default: return "text-gray-500";
+      case "connected": return "text-success";
+      case "connecting": return "text-warning";
+      case "error": return "text-error";
+      default: return "text-base-content/60";
     }
   };
 
@@ -223,6 +239,14 @@ const CodeEditor = () => {
       default: return "Déconnecté";
     }
   };
+
+  useEffect(() => {
+    setOnRemoteLanguageChange((remoteLanguage) => {
+      if (!remoteLanguage || remoteLanguage === language) return;
+      console.log("🌐 Langage distant reçu:", remoteLanguage);
+      setLanguage(remoteLanguage);
+    });
+  }, [language, setOnRemoteLanguageChange]);
 
   // Protection contre l'absence d'ID d'appel
   if (!callId) {
@@ -236,7 +260,7 @@ const CodeEditor = () => {
   return (
     <div>
       {/* Barre d'état de la collaboration */}
-      <div className="mb-4 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg flex justify-between items-center text-sm">
+      <div className="mb-4 p-3 bg-base-200 rounded-lg flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between text-sm">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <div
@@ -257,18 +281,18 @@ const CodeEditor = () => {
             )}
           </div>
           
-          <div className="text-gray-600 dark:text-gray-400">
+          <div className="text-base-content/70">
             {participantCount} participant{participantCount !== 1 ? "s" : ""} connecté{participantCount !== 1 ? "s" : ""}
           </div>
-          
+
           {connectionStatus === "connected" && (
-            <div className="text-xs text-green-600 dark:text-green-400">
+            <div className="text-xs text-success">
               🔄 Synchro temps réel
             </div>
           )}
         </div>
-        
-        <div className="text-gray-500 text-xs">Room: {callId}</div>
+
+        <div className="text-base-content/60 text-xs">Room: {callId}</div>
       </div>
 
       {/* Layout principal avec éditeur et sortie */}

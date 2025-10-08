@@ -1,6 +1,6 @@
-import { Link, useLocation } from "react-router";
+import { Link, useLocation } from "react-router-dom";
 import useAuthUser from "../hooks/useAuthUser";
-import {BellIcon, HomeIcon, MessageSquareCode, UsersIcon} from 'lucide-react';
+import { Bell as BellIcon, Home as HomeIcon, MessageSquareCode, Sparkles as SparklesIcon, Users as UsersIcon } from 'lucide-react';
 
 /**
  * Composant sidebar de navigation latérale
@@ -34,6 +34,16 @@ const Sidebar = () => {
         >
           <HomeIcon className="size-5 text-base-content opacity-70" />
           <span>Accueil</span>
+        </Link>
+
+        <Link
+          to="/fonctionnalites"
+          className={
+            `btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${currentPath === "/fonctionnalites" ? "btn-active" : "" }`
+          }
+        >
+          <SparklesIcon className="size-5 text-base-content opacity-70" />
+          <span>Fonctionnalités</span>
         </Link>
 
         <Link

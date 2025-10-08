@@ -13,13 +13,14 @@ const rooms = new Map();
  * @returns {object} Objet salle contenant les clients connectés et le contenu partagé
  */
 function getRoom(callId) {
-	if (!rooms.has(callId)) {
-		rooms.set(callId, {
-			clients: new Set(),
-			content: "", // Contenu collaboratif initial vide
-		});
-	}
-	return rooms.get(callId);
+        if (!rooms.has(callId)) {
+                rooms.set(callId, {
+                        clients: new Set(),
+                        content: "", // Contenu collaboratif initial vide
+                        language: "javascript", // Langage par défaut synchronisé
+                });
+        }
+        return rooms.get(callId);
 }
 
 /**
@@ -47,11 +48,12 @@ function handleConnection(ws, callId) {
 
 	// Envoi du contenu initial de la salle au nouveau client
 	try {
-		const initialMessage = {
-			type: "INITIAL_CONTENT",
-			content: room.content,
-			timestamp: Date.now(),
-		};
+                const initialMessage = {
+                        type: "INITIAL_CONTENT",
+                        content: room.content,
+                        language: room.language,
+                        timestamp: Date.now(),
+                };
 		ws.send(JSON.stringify(initialMessage));
 		console.log(
 			`📤 Contenu initial envoyé à ${callId}:`,
@@ -78,20 +80,24 @@ function handleConnection(ws, callId) {
 			const message = JSON.parse(data.toString());
 			console.log(`📨 Message reçu de ${callId}:`, message.type);
 
-			switch (message.type) {
-				case "DELTA_CHANGE":
-					// Traitement des modifications collaboratives du contenu
-					handleDeltaChange(callId, message, ws);
-					break;
+                        switch (message.type) {
+                                case "DELTA_CHANGE":
+                                        // Traitement des modifications collaboratives du contenu
+                                        handleDeltaChange(callId, message, ws);
+                                        break;
 
-				case "CURSOR_POSITION":
-					// Synchronisation de la position du curseur entre clients
-					handleCursorPosition(callId, message, ws);
-					break;
+                                case "CURSOR_POSITION":
+                                        // Synchronisation de la position du curseur entre clients
+                                        handleCursorPosition(callId, message, ws);
+                                        break;
 
-				default:
-					console.warn(`⚠️ Type de message inconnu: ${message.type}`);
-			}
+                                case "LANGUAGE_CHANGE":
+                                        handleLanguageChange(callId, message, ws);
+                                        break;
+
+                                default:
+                                        console.warn(`⚠️ Type de message inconnu: ${message.type}`);
+                        }
 		} catch (error) {
 			console.error("❌ Erreur parsing message:", error);
 		}
@@ -119,6 +125,35 @@ function handleConnection(ws, callId) {
 		room.clients.delete(ws);
 		cleanupRoom(callId);
 	});
+}
+
+/**
+ * Traite le changement de langage de programmation dans l'éditeur
+ * Met à jour l'état de la salle et notifie les autres participants
+ * @param {string} callId - Identifiant de la salle
+ * @param {object} message - Message contenant le nouveau langage
+ * @param {WebSocket} senderWs - WebSocket de l'expéditeur
+ */
+function handleLanguageChange(callId, message, senderWs) {
+        const room = getRoom(callId);
+        const { language, userId } = message;
+
+        if (typeof language !== "string" || language.trim() === "") {
+                console.warn("⚠️ Langage invalide reçu:", language);
+                return;
+        }
+
+        const normalizedLanguage = language.trim();
+        room.language = normalizedLanguage;
+
+        const languageMessage = {
+                type: "LANGUAGE_CHANGE",
+                language: normalizedLanguage,
+                userId,
+                timestamp: Date.now(),
+        };
+
+        broadcastToRoom(callId, languageMessage, senderWs);
 }
 
 /**
