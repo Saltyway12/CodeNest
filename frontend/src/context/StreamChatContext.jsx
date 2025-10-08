@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { StreamChat } from 'stream-chat';
 import { useQuery } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import { getStreamToken } from '../lib/api';
 import useAuthUser from '../hooks/useAuthUser';
 import StreamChatContext from './StreamChatContext.js';
@@ -88,6 +89,60 @@ export const StreamChatProvider = ({ children }) => {
       setChatClient(null);
     };
   }, [tokenData, authUser]);
+
+  // Notification toast lors de la réception d'un nouveau message
+  useEffect(() => {
+    const client = chatClientRef.current;
+    if (!client || !authUser || typeof window === "undefined") return;
+
+    const handleNewMessage = (event) => {
+      const senderId = event.user?.id;
+      const senderName = event.user?.name || 'Nouveau message';
+      const preview = event.message?.text?.trim() || "Vous avez reçu un nouveau message.";
+
+      if (!event.message || senderId === authUser._id) return;
+
+      const channelId = event.cid?.split(':')[1] || '';
+      const participantIds = channelId.split('-');
+      const targetUserId = participantIds.find((id) => id && id !== authUser._id);
+
+      if (targetUserId && window.location.pathname === `/chat/${targetUserId}`) {
+        return;
+      }
+
+      toast.custom((t) => (
+        <div
+          className="bg-base-100 border border-base-300 shadow-xl rounded-lg p-4 flex flex-col gap-3 max-w-sm"
+          role="status"
+        >
+          <div>
+            <p className="font-semibold text-base-content">{senderName}</p>
+            <p className="text-sm text-base-content/70 mt-1 break-words">
+              {preview}
+            </p>
+          </div>
+          {targetUserId && (
+            <button
+              type="button"
+              className="btn btn-primary btn-sm self-start"
+              onClick={() => {
+                toast.dismiss(t.id);
+                window.location.href = `/chat/${targetUserId}`;
+              }}
+            >
+              Ouvrir le chat
+            </button>
+          )}
+        </div>
+      ), { duration: 5000 });
+    };
+
+    client.on('message.new', handleNewMessage);
+
+    return () => {
+      client.off('message.new', handleNewMessage);
+    };
+  }, [authUser]);
 
   return (
     <StreamChatContext.Provider value={{ chatClient }}>

@@ -1,4 +1,4 @@
-import { LoaderIcon } from "lucide-react"
+import { LoaderIcon } from "lucide-react";
 import { useThemeStore } from "../store/useThemeStore";
 
 /**
@@ -6,12 +6,13 @@ import { useThemeStore } from "../store/useThemeStore";
  * Écran de chargement avec thème adaptatif pour les transitions d'application
  */
 const PageLoader = () => {
-    const { theme } = useThemeStore();
-    return (
-        <div className="min-h-screen flex items-center justify-center" data-theme={theme}>
-            <LoaderIcon className="animate-spin size-10 text-primary"/>
-        </div>
-  )
-}
+  const { theme } = useThemeStore();
+
+  return (
+    <div className="min-h-screen flex items-center justify-center" data-theme={theme}>
+      <LoaderIcon className="animate-spin size-10 text-primary" />
+    </div>
+  );
+};
 
 export default PageLoader;

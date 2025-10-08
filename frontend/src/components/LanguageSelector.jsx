@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { LANGUAGE_VERSIONS } from "../constants/constants";
 
@@ -12,38 +12,44 @@ const languages = Object.entries(LANGUAGE_VERSIONS);
  */
 const LanguageSelector = ({ language, onSelect }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const sortedLanguages = useMemo(
+    () =>
+      [...languages].sort(([langA], [langB]) =>
+        langA.localeCompare(langB, "en", { sensitivity: "base" })
+      ),
+    []
+  );
 
   return (
     <div className="ml-2 mb-4">
-      <p className="mb-2 text-lg">Language:</p>
-      
+      <p className="mb-2 text-sm font-medium text-base-content/80 uppercase tracking-wide">Langage</p>
+
       <div className="relative">
         <button
-          className="flex items-center justify-between w-full px-4 py-2 bg-gray-800 text-white rounded-md border border-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="flex items-center justify-between w-full px-4 py-2 bg-base-300 text-base-content rounded-md border border-base-300 hover:bg-base-200 focus:outline-none focus:ring-2 focus:ring-primary/40"
           onClick={() => setIsOpen(!isOpen)}
         >
           {language}
           <ChevronDown className={`ml-2 h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </button>
-        
+
         {isOpen && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-gray-900 border border-gray-600 rounded-md shadow-lg z-10">
-            {languages.map(([lang, version]) => (
+          <div className="absolute top-full left-0 right-0 mt-1 bg-base-200 border border-base-300 rounded-md shadow-lg z-10 overflow-hidden">
+            {sortedLanguages.map(([lang, version]) => (
               <button
                 key={lang}
-                className={`w-full px-4 py-2 text-left hover:bg-gray-800 hover:text-blue-400 focus:outline-none focus:bg-gray-800 ${
-                  lang === language 
-                    ? 'bg-gray-800 text-blue-400' 
-                    : 'text-white'
+                className={`w-full px-4 py-2 text-left focus:outline-none transition-colors ${
+                  lang === language
+                    ? 'bg-primary/10 text-primary'
+                    : 'hover:bg-base-300 text-base-content'
                 }`}
                 onClick={() => {
                   onSelect(lang);
                   setIsOpen(false);
                 }}
               >
-                {lang}
-                &nbsp;
-                <span className="text-gray-600 text-sm">
+                <span className="font-medium capitalize">{lang}</span>
+                <span className="ml-2 text-xs text-base-content/70">
                   ({version})
                 </span>
               </button>
