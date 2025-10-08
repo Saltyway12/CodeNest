@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowRight as ArrowRightIcon,
@@ -11,78 +11,75 @@ import {
   UserPlus as UserPlusIcon,
   Users as UsersIcon,
 } from "lucide-react";
-import { getFriendRequests, getOutgoingFriendReqs, getRecommendedUsers, getUserFriends, sendFriendRequest } from '../lib/api';
+import {
+  getFriendRequests,
+  getOutgoingFriendReqs,
+  getRecommendedUsers,
+  getUserFriends,
+  sendFriendRequest,
+} from "../lib/api";
 import { capitialize } from "../lib/utils";
 import FriendCard, { getLanguageFlag, getProgrammingLogo } from "../components/FriendCard";
 import NoFriendsFound from "../components/NoFriendsFound";
 
 /**
- * Page d'accueil de l'application
- * Réorganisée pour mettre en avant l'éditeur collaboratif et les actions rapides
+ * Page d'accueil de l'application.
+ * Réorganisée pour mettre en avant la collaboration et guider l'utilisateur
+ * vers les actions prioritaires (messagerie, fonctionnalités et notifications).
  */
 const HomePage = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  // Stockage des IDs de demandes d'amis envoyées pour optimiser les vérifications
   const [outgoingRequestsIds, setOutgoingRequestsIds] = useState(() => new Set());
   const [incomingRequestsIds, setIncomingRequestsIds] = useState(() => new Set());
 
-  // Requête pour récupérer les amis de l'utilisateur connecté
   const { data: friends = [], isLoading: loadingFriends } = useQuery({
     queryKey: ["friends"],
     queryFn: getUserFriends,
   });
 
-  // Requête pour les utilisateurs suggérés (excluant amis actuels et utilisateur)
   const { data: recommendedUsers = [], isLoading: loadingUsers } = useQuery({
     queryKey: ["recommendedUsers"],
     queryFn: getRecommendedUsers,
   });
 
-  // Requête pour les demandes d'amis sortantes en attente
   const { data: outgoingFriendRequests } = useQuery({
     queryKey: ["outgoingFriendRequests"],
     queryFn: getOutgoingFriendReqs,
   });
 
-  // Requête pour les demandes entrantes
   const { data: friendRequestsData } = useQuery({
     queryKey: ["friendRequests", "home"],
     queryFn: getFriendRequests,
   });
 
-  // Mutation pour l'envoi de nouvelles demandes d'amitié
   const { mutate: sendRequestMutation, isPending } = useMutation({
     mutationFn: sendFriendRequest,
     onSuccess: () => {
-      // Invalidation des caches après succès pour rafraîchissement automatique
       queryClient.invalidateQueries({ queryKey: ["outgoingFriendRequests"] });
       queryClient.invalidateQueries({ queryKey: ["recommendedUsers"] });
       queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
     },
   });
 
-  // Mise à jour du Set des IDs de demandes envoyées pour UI réactive
   useEffect(() => {
-    const outgoingIds = new Set();
-    if (outgoingFriendRequests && outgoingFriendRequests.length > 0) {
-      outgoingFriendRequests.forEach((req) => {
-        outgoingIds.add(req.recipient._id);
-      });
-    }
-    setOutgoingRequestsIds(outgoingIds);
+    const nextIds = new Set();
+    outgoingFriendRequests?.forEach((req) => {
+      nextIds.add(req.recipient._id);
+    });
+    setOutgoingRequestsIds(nextIds);
   }, [outgoingFriendRequests]);
 
   useEffect(() => {
-    const incoming = friendRequestsData?.incomingReqs ?? [];
-    const incomingIds = new Set();
+    const nextIncomingIds = new Set();
+    const incomingReqs = friendRequestsData?.incomingReqs ?? [];
 
-    incoming.forEach((req) => {
-      incomingIds.add(req.sender._id);
+    incomingReqs.forEach((req) => {
+      nextIncomingIds.add(req.sender._id);
     });
 
-    setIncomingRequestsIds(incomingIds);
+    setIncomingRequestsIds(nextIncomingIds);
   }, [friendRequestsData]);
 
   const handleOpenFeatures = () => navigate("/fonctionnalites");
@@ -92,15 +89,16 @@ const HomePage = () => {
       navigate(`/chat/${friends[0]._id}`);
       return;
     }
+
     navigate("/notifications");
   };
 
-  const hasFriends = useMemo(() => friends.length > 0, [friends.length]);
+  const hasFriends = friends.length > 0;
 
   return (
     <div className="min-h-screen p-4 sm:p-6 lg:p-8">
       <div className="container mx-auto space-y-12">
-        {/* Hero principal */}
+        {/* Section de mise en avant */}
         <section className="grid gap-6 lg:grid-cols-[2fr,1fr] items-stretch">
           <div className="card bg-gradient-to-br from-primary/20 via-primary/10 to-base-200 border border-primary/20">
             <div className="card-body p-6 sm:p-8 space-y-4">
@@ -112,8 +110,8 @@ const HomePage = () => {
                 Coopérez, échangez et progressez ensemble.
               </h1>
               <p className="text-base-content/80 max-w-2xl">
-                {"Coopérez depuis la messagerie : lancez un appel, partagez le code en direct et organisez vos sessions avec "}
-                {"votre communauté."}
+                Gérez vos projets depuis la messagerie : lancez un appel, partagez votre code
+                en temps réel et organisez vos sessions avec votre communauté.
               </p>
               <div className="flex flex-wrap gap-3">
                 <button type="button" className="btn btn-outline" onClick={handleOpenFeatures}>
@@ -156,7 +154,7 @@ const HomePage = () => {
           </div>
         </section>
 
-        {/* Section des amis existants */}
+        {/* Liste des amis existants */}
         <section className="space-y-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
@@ -186,7 +184,7 @@ const HomePage = () => {
           )}
         </section>
 
-        {/* Section des recommandations d'utilisateurs */}
+        {/* Recommandations d'utilisateurs */}
         <section className="space-y-6">
           <div>
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Rencontrez de nouveaux binômes</h2>
@@ -218,8 +216,6 @@ const HomePage = () => {
                     className="card bg-base-200 border border-base-300 hover:border-primary/40 hover:shadow-lg transition-all duration-300"
                   >
                     <div className="card-body p-5 space-y-4">
-
-                      {/* Profil utilisateur avec avatar et informations de base */}
                       <div className="flex items-center gap-3">
                         <div className="avatar size-16 rounded-full">
                           <img src={user.profilePic} alt={user.fullName} />
@@ -236,7 +232,6 @@ const HomePage = () => {
                         </div>
                       </div>
 
-                      {/* Badges informatifs pour les langues */}
                       <div className="flex flex-wrap gap-1.5">
                         <span className="badge badge-secondary">
                           {getLanguageFlag(user.nativeLanguage)}
@@ -248,11 +243,10 @@ const HomePage = () => {
                         </span>
                       </div>
 
-                      {/* Biographie utilisateur si disponible */}
                       {user.bio && <p className="text-sm opacity-70">{user.bio}</p>}
 
-                      {/* Bouton d'action avec état dynamique */}
                       <button
+                        type="button"
                         className="btn btn-primary w-full mt-2"
                         onClick={() => sendRequestMutation(user._id)}
                         disabled={hasRequestBeenSent || hasIncomingRequest || isPending}
