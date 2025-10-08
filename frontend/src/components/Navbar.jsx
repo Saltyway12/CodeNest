@@ -1,9 +1,9 @@
-import { Link, useLocation } from 'react-router';
+import { Link, useLocation } from "react-router-dom";
 import useStreamChat from '../context/useStreamChat'; // Import du contexte custom
 import useAuthUser from '../hooks/useAuthUser';
 import useLogout from '../hooks/useLogout';
 import { useNotifications } from '../hooks/useNotifications';
-import { BellIcon, LogOutIcon, MessageSquareCode } from 'lucide-react';
+import { Bell as BellIcon, LogOut as LogOutIcon, MessageSquareCode, Sparkles as SparklesIcon } from 'lucide-react';
 import ThemeSelector from "./ThemeSelector";
 import NotificationBadge from "./NotificationBadge";
 
@@ -42,6 +42,11 @@ const Navbar = () => {
 
           {/* Contrôles à droite avec espacement uniforme */}
           <div className="flex items-center gap-2 ml-auto">
+            <Link to="/fonctionnalites" className="btn btn-ghost btn-sm inline-flex items-center gap-2">
+              <SparklesIcon className="size-4" />
+              Fonctionnalités
+            </Link>
+
             {/* Bouton Notifications avec pastille en temps réel */}
             <Link to="/notifications" className="relative">
               <button className="btn btn-ghost btn-circle">

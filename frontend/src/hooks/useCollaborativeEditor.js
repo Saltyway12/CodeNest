@@ -16,8 +16,9 @@ export const useCollaborativeEditor = (callId) => {
 	const [participantCount, setParticipantCount] = useState(1);
 
 	// Références pour les callbacks afin d'éviter les re-renders inutiles
-	const onInitialContentRef = useRef(null);
-	const onRemoteChangeRef = useRef(null);
+        const onInitialContentRef = useRef(null);
+        const onRemoteChangeRef = useRef(null);
+        const onRemoteLanguageChangeRef = useRef(null);
 
 	// Configuration de la reconnexion automatique
 	const reconnectTimeoutRef = useRef(null);
@@ -33,15 +34,15 @@ export const useCollaborativeEditor = (callId) => {
 		console.log("Message WebSocket reçu:", message.type);
 
 		switch (message.type) {
-			case "INITIAL_CONTENT":
-				console.log("Réception contenu initial");
-				if (onInitialContentRef.current) {
-					onInitialContentRef.current(message.content);
-				}
-				break;
+                        case "INITIAL_CONTENT":
+                                console.log("Réception contenu initial");
+                                if (onInitialContentRef.current) {
+                                        onInitialContentRef.current(message);
+                                }
+                                break;
 
-			case "DELTA_CHANGE":
-				console.log("Application delta distant:", message.changes);
+                        case "DELTA_CHANGE":
+                                console.log("Application delta distant:", message.changes);
 
 				// Validation critique des changements reçus
 				if (!message.changes) {
@@ -68,7 +69,13 @@ export const useCollaborativeEditor = (callId) => {
 				} else {
 					console.warn("onRemoteChangeRef.current non défini");
 				}
-				break;
+                                break;
+
+                        case "LANGUAGE_CHANGE":
+                                if (onRemoteLanguageChangeRef.current) {
+                                        onRemoteLanguageChangeRef.current(message.language);
+                                }
+                                break;
 
 			case "USER_JOINED":
 			case "USER_LEFT":
@@ -214,10 +221,10 @@ export const useCollaborativeEditor = (callId) => {
 	 * @param {Array} changes - Liste des modifications à synchroniser
 	 * @returns {boolean} Succès de l'envoi
 	 */
-	const sendDeltaChange = useCallback((changes) => {
-		if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-			console.warn("WebSocket non connecté");
-			return false;
+        const sendDeltaChange = useCallback((changes) => {
+                if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+                        console.warn("WebSocket non connecté");
+                        return false;
 		}
 
 		if (!Array.isArray(changes)) {
@@ -239,7 +246,34 @@ export const useCollaborativeEditor = (callId) => {
 			console.error("Erreur envoi WebSocket:", error);
 			return false;
 		}
-	}, []);
+        }, []);
+
+        const sendLanguageChange = useCallback((language) => {
+                if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+                        console.warn("WebSocket non connecté pour changement de langage");
+                        return false;
+                }
+
+                if (typeof language !== "string" || language.trim() === "") {
+                        console.warn("Langage invalide pour synchronisation:", language);
+                        return false;
+                }
+
+                const message = {
+                        type: "LANGUAGE_CHANGE",
+                        language,
+                        userId: userIdRef.current,
+                        timestamp: Date.now(),
+                };
+
+                try {
+                        wsRef.current.send(JSON.stringify(message));
+                        return true;
+                } catch (error) {
+                        console.error("Erreur envoi changement de langage:", error);
+                        return false;
+                }
+        }, []);
 
 	// Utilitaires de gestion d'état
 	const isApplyingRemoteChange = useCallback(() => {
@@ -255,9 +289,13 @@ export const useCollaborativeEditor = (callId) => {
 		onInitialContentRef.current = callback;
 	}, []);
 
-	const setOnRemoteChange = useCallback((callback) => {
-		onRemoteChangeRef.current = callback;
-	}, []);
+        const setOnRemoteChange = useCallback((callback) => {
+                onRemoteChangeRef.current = callback;
+        }, []);
+
+        const setOnRemoteLanguageChange = useCallback((callback) => {
+                onRemoteLanguageChangeRef.current = callback;
+        }, []);
 
 	// Méthode de reconnexion manuelle
 	const reconnect = useCallback(() => {
@@ -273,13 +311,15 @@ export const useCollaborativeEditor = (callId) => {
 		userId: userIdRef.current,
 
 		// Méthodes de synchronisation
-		sendDeltaChange,
-		isApplyingRemoteChange,
-		setApplyingRemoteChange,
-		reconnect,
+                sendDeltaChange,
+                sendLanguageChange,
+                isApplyingRemoteChange,
+                setApplyingRemoteChange,
+                reconnect,
 
-		// Configuration des callbacks
-		setOnInitialContent,
-		setOnRemoteChange,
-	};
+                // Configuration des callbacks
+                setOnInitialContent,
+                setOnRemoteChange,
+                setOnRemoteLanguageChange,
+        };
 };

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams } from "react-router-dom";
 import useAuthUser from "../hooks/useAuthUser";
 import { useQuery } from "@tanstack/react-query";
 import { getStreamToken } from "../lib/api";
@@ -112,7 +112,7 @@ const CallContent = () => {
   if (callingState === CallingState.LEFT) return navigate("/");
 
   return (
-    <div className="h-screen flex flex-col bg-gray-900">
+    <div className="h-screen flex flex-col bg-gray-900 text-gray-100">
       {/* En-tête avec logo et contrôles de mise en page */}
       <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
         <div className="flex items-center space-x-4">
@@ -123,41 +123,32 @@ const CallContent = () => {
         </div>
 
         {/* Boutons de sélection du mode d'affichage */}
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={() => setLayout("video-only")}
-            className={`px-3 py-2 rounded-md flex items-center space-x-2 transition-colors ${
-              layout === "video-only"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-            }`}
+            className={`btn btn-sm gap-2 ${layout === "video-only" ? "btn-primary" : "btn-ghost"}`}
           >
             <Video className="h-4 w-4" />
-            <span>Video Only</span>
+            <span>Vidéo</span>
           </button>
 
           <button
+            type="button"
             onClick={() => setLayout("split")}
-            className={`px-3 py-2 rounded-md flex items-center space-x-2 transition-colors ${
-              layout === "split"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-            }`}
+            className={`btn btn-sm gap-2 ${layout === "split" ? "btn-primary" : "btn-ghost"}`}
           >
             <PanelLeft className="h-4 w-4" />
-            <span>Split View</span>
+            <span>Vue partagée</span>
           </button>
 
           <button
+            type="button"
             onClick={() => setLayout("code-only")}
-            className={`px-3 py-2 rounded-md flex items-center space-x-2 transition-colors ${
-              layout === "code-only"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-            }`}
+            className={`btn btn-sm gap-2 ${layout === "code-only" ? "btn-primary" : "btn-ghost"}`}
           >
             <Code className="h-4 w-4" />
-            <span>Code Only</span>
+            <span>Code</span>
           </button>
         </div>
       </div>

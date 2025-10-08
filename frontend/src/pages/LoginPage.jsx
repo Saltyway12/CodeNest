@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { MessageSquareCode } from 'lucide-react';
-import { Link } from "react-router";
+import { useMemo, useState } from "react";
+import { MessageSquareCode } from "lucide-react";
+import { Link } from "react-router-dom";
 import useLogin from "../hooks/useLogin";
 
 /**
@@ -13,8 +13,31 @@ const LoginPage = () => {
     email: "",
     password: "",
   });
+  const [errors, setErrors] = useState({});
 
   const { isPending, error, loginMutation } = useLogin();
+
+  const emailRegex = useMemo(
+    () => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/,
+    []
+  );
+
+  const isFormValid =
+    emailRegex.test(loginData.email) && loginData.password.trim().length >= 6;
+
+  const validateForm = () => {
+    const validationErrors = {};
+
+    if (!emailRegex.test(loginData.email)) {
+      validationErrors.email = "Adresse e-mail invalide.";
+    }
+
+    if (loginData.password.trim().length < 6) {
+      validationErrors.password = "Le mot de passe doit contenir au moins 6 caractères.";
+    }
+
+    return validationErrors;
+  };
 
   /**
    * Gestionnaire de soumission du formulaire de connexion
@@ -22,6 +45,13 @@ const LoginPage = () => {
    */
   const handleLogin = (e) => {
     e.preventDefault();
+    const validationErrors = validateForm();
+    setErrors(validationErrors);
+
+    if (Object.keys(validationErrors).length > 0) {
+      return;
+    }
+
     loginMutation(loginData);
   };
 
@@ -43,7 +73,7 @@ const LoginPage = () => {
           {/* Affichage conditionnel des erreurs d'authentification */}
           {error && (
             <div className="alert alert-error mb-4">
-              <span>{error.response.data.message}</span>
+              <span>{error?.response?.data?.message || "Impossible de vous connecter. Vérifiez vos identifiants."}</span>
             </div>
           )}
 
@@ -62,35 +92,53 @@ const LoginPage = () => {
                   {/* Champ email avec validation HTML5 */}
                   <div className="form-control w-full space-y-2">
                     <label className="label">
-                      <span className="label-text">E-mail</span>
+                      <span className="label-text font-medium">E-mail <span className="text-error" aria-hidden="true">*</span></span>
                     </label>
                     <input
                       type="email"
                       placeholder="votre.mail@exemple.com"
-                      className="input input-bordered w-full"
+                      className={`input input-bordered w-full ${errors.email ? "input-error" : ""}`}
                       value={loginData.email}
-                      onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
-                      required
+                      onChange={(e) => {
+                        setLoginData({ ...loginData, email: e.target.value });
+                        setErrors((prev) => ({ ...prev, email: undefined }));
+                      }}
+                      aria-invalid={Boolean(errors.email)}
+                      autoComplete="email"
                     />
+                    {errors.email && (
+                      <p className="text-error text-sm" role="alert">
+                        {errors.email}
+                      </p>
+                    )}
                   </div>
 
                   {/* Champ mot de passe sécurisé */}
                   <div className="form-control w-full space-y-2">
                     <label className="label">
-                      <span className="label-text">Mot de passe</span>
+                      <span className="label-text font-medium">Mot de passe <span className="text-error" aria-hidden="true">*</span></span>
                     </label>
                     <input
                       type="password"
                       placeholder="••••••••"
-                      className="input input-bordered w-full"
+                      className={`input input-bordered w-full ${errors.password ? "input-error" : ""}`}
                       value={loginData.password}
-                      onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                      required
+                      onChange={(e) => {
+                        setLoginData({ ...loginData, password: e.target.value });
+                        setErrors((prev) => ({ ...prev, password: undefined }));
+                      }}
+                      aria-invalid={Boolean(errors.password)}
+                      autoComplete="current-password"
                     />
+                    {errors.password && (
+                      <p className="text-error text-sm" role="alert">
+                        {errors.password}
+                      </p>
+                    )}
                   </div>
 
                   {/* Bouton de soumission avec état de chargement */}
-                  <button type="submit" className="btn btn-primary w-full" disabled={isPending}>
+                  <button type="submit" className="btn btn-primary w-full" disabled={!isFormValid || isPending}>
                     {isPending ? (
                       <>
                         <span className="loading loading-spinner loading-xs"></span>
@@ -125,7 +173,7 @@ const LoginPage = () => {
               <img
                 src="/i.png"
                 alt="Illustration d'inscription"
-                className="w_full h-full"
+                className="w-full h-full"
               />
             </div>
 
@@ -143,4 +191,4 @@ const LoginPage = () => {
   );
 };
 
-export default LoginPage
+export default LoginPage;
