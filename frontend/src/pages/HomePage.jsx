@@ -29,19 +29,16 @@ const HomePage = () => {
   const [outgoingRequestsIds, setOutgoingRequestsIds] = useState(() => new Set());
   const [incomingRequestsIds, setIncomingRequestsIds] = useState(() => new Set());
 
-  // Requête pour récupérer les amis de l'utilisateur connecté
   const { data: friends = [], isLoading: loadingFriends } = useQuery({
     queryKey: ["friends"],
     queryFn: getUserFriends,
   });
 
-  // Requête pour les utilisateurs suggérés (excluant amis actuels et utilisateur)
   const { data: recommendedUsers = [], isLoading: loadingUsers } = useQuery({
     queryKey: ["recommendedUsers"],
     queryFn: getRecommendedUsers,
   });
 
-  // Requête pour les demandes d'amis sortantes en attente
   const { data: outgoingFriendRequests } = useQuery({
     queryKey: ["outgoingFriendRequests"],
     queryFn: getOutgoingFriendReqs,
@@ -57,14 +54,14 @@ const HomePage = () => {
   const { mutate: sendRequestMutation, isPending } = useMutation({
     mutationFn: sendFriendRequest,
     onSuccess: () => {
-      // Invalidation des caches après succès pour rafraîchissement automatique
       queryClient.invalidateQueries({ queryKey: ["outgoingFriendRequests"] });
       queryClient.invalidateQueries({ queryKey: ["recommendedUsers"] });
       queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
     },
   });
 
-  // Mise à jour du Set des IDs de demandes envoyées pour UI réactive
+  const hasFriends = useMemo(() => friends.length > 0, [friends.length]);
+
   useEffect(() => {
     const outgoingIds = new Set();
     if (outgoingFriendRequests && outgoingFriendRequests.length > 0) {
@@ -244,7 +241,6 @@ const HomePage = () => {
                         </div>
                       </div>
 
-                      {/* Badges informatifs pour les langues */}
                       <div className="flex flex-wrap gap-1.5">
                         <span className="badge badge-secondary">
                           {getLanguageFlag(user.nativeLanguage)}
@@ -256,10 +252,8 @@ const HomePage = () => {
                         </span>
                       </div>
 
-                      {/* Biographie utilisateur si disponible */}
                       {user.bio && <p className="text-sm opacity-70">{user.bio}</p>}
 
-                      {/* Bouton d'action avec état dynamique */}
                       <button
                         className="btn btn-primary w-full mt-2"
                         onClick={() => sendRequestMutation(user._id)}
