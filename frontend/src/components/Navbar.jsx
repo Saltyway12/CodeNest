@@ -1,16 +1,16 @@
 import { Link, useLocation } from "react-router-dom";
-import useStreamChat from '../context/useStreamChat'; // Import du contexte custom
-import useAuthUser from '../hooks/useAuthUser';
-import useLogout from '../hooks/useLogout';
-import { useNotifications } from '../hooks/useNotifications';
-import { Bell as BellIcon, LogOut as LogOutIcon, MessageSquareCode, Sparkles as SparklesIcon } from 'lucide-react';
+import useStreamChat from "../context/useStreamChat";
+import useAuthUser from "../hooks/useAuthUser";
+import useLogout from "../hooks/useLogout";
+import { useNotifications } from "../hooks/useNotifications";
+import { Bell as BellIcon, LogOut as LogOutIcon, MessageSquareCode, Sparkles as SparklesIcon } from "lucide-react";
 import ThemeSelector from "./ThemeSelector";
 import NotificationBadge from "./NotificationBadge";
 
 /**
- * Composant barre de navigation principale
- * Affiche le logo en mode chat, avatar utilisateur et contrôles globaux
- * Inclut une pastille de notifications en temps réel
+ * Barre supérieure fixe contenant les actions globales (navigation secondaire,
+ * notifications, changement de thème, logout). Le logo n'est affiché qu'en
+ * vue conversation pour libérer l'espace ailleurs.
  */
 const Navbar = () => {
   const { authUser } = useAuthUser();
@@ -18,17 +18,17 @@ const Navbar = () => {
   const location = useLocation();
   const isChatPage = location.pathname?.startsWith('/chat');
 
-  // Récupération du client Stream depuis le contexte global
+  // Client Stream partagé pour calculer les notifications en direct
   const { chatClient } = useStreamChat();
 
-  // Hook personnalisé pour compter toutes les notifications
+  // Agrégation des notifications Stream et amitiés
   const { totalCount } = useNotifications(chatClient);
 
   return (
     <nav className="bg-base-200 border-b border-base-300 sticky top-0 z-30">
       <div className="px-4 sm:px-6 lg:px-8 py-5 flex items-center">
         <div className="flex items-center justify-between w-full">
-          {/* Logo visible uniquement en page de chat */}
+          {/* Logo conditionnel en mode conversation */}
           {isChatPage && (
             <div className="flex-shrink-0">
               <Link to="/" className="flex items-center gap-2.5">
@@ -40,14 +40,14 @@ const Navbar = () => {
             </div>
           )}
 
-          {/* Contrôles à droite avec espacement uniforme */}
+          {/* Commandes globales */}
           <div className="flex items-center gap-2 ml-auto">
             <Link to="/fonctionnalites" className="btn btn-ghost btn-sm inline-flex items-center gap-2">
               <SparklesIcon className="size-4" />
               Fonctionnalités
             </Link>
 
-            {/* Bouton Notifications avec pastille en temps réel */}
+            {/* Notifications agrégées */}
             <Link to="/notifications" className="relative">
               <button className="btn btn-ghost btn-circle">
                 <BellIcon className="size-5 text-base-content opacity-70" />
@@ -55,17 +55,17 @@ const Navbar = () => {
               </button>
             </Link>
 
-            {/* Sélecteur de thème */}
+            {/* Préférence de thème */}
             <ThemeSelector />
 
-            {/* Avatar utilisateur cliquable */}
+            {/* Accès au profil */}
             <Link to="/profil" className="avatar cursor-pointer hover:opacity-80 transition-opacity">
               <div className="w-9 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2 ring-opacity-0 hover:ring-opacity-100 transition-all">
                 <img src={authUser?.profilePic} alt="User Avatar" />
               </div>
             </Link>
 
-            {/* Bouton de déconnexion */}
+            {/* Déconnexion */}
             <button className="btn btn-ghost btn-circle" onClick={logoutMutation}>
               <LogOutIcon className="size-5 text-base-content opacity-70" />
             </button>

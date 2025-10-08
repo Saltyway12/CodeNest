@@ -9,23 +9,24 @@ import StreamChatContext from './StreamChatContext.js';
 const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
 
 /**
- * Provider pour le client Stream Chat global
- * Initialise et maintient une instance unique du client
- * Accessible partout dans l'application
+ * Fournisseur React responsable de l'initialisation paresseuse et du cycle de
+ * vie du client Stream Chat. Garantit qu'une seule instance est partagée entre
+ * tous les consommateurs et qu'elle est déconnectée proprement lors du
+ * démontage ou d'un changement d'utilisateur.
  */
 export const StreamChatProvider = ({ children }) => {
   const [chatClient, setChatClient] = useState(null);
   const chatClientRef = useRef(null);
   const { authUser } = useAuthUser();
 
-  // Récupération du token Stream
+  // Récupération du token Stream pour l'utilisateur courant
   const { data: tokenData } = useQuery({
     queryKey: ['streamToken'],
     queryFn: getStreamToken,
     enabled: !!authUser,
   });
 
-  // Initialisation du client Stream (une seule fois)
+  // Création puis mise en cache du client Stream
   useEffect(() => {
     if (!tokenData?.token || !authUser) {
       return () => {
@@ -73,7 +74,7 @@ export const StreamChatProvider = ({ children }) => {
 
     initClient();
 
-    // Cleanup : déconnexion lors du démontage
+    // Déconnexion à la sortie du provider
     return () => {
       isCancelled = true;
       const client = clientInstance ?? chatClientRef.current;
@@ -90,7 +91,7 @@ export const StreamChatProvider = ({ children }) => {
     };
   }, [tokenData, authUser]);
 
-  // Notification toast lors de la réception d'un nouveau message
+  // Notification toast lors de la réception d'un message entrant
   useEffect(() => {
     const client = chatClientRef.current;
     if (!client || !authUser || typeof window === "undefined") return;

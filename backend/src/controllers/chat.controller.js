@@ -1,22 +1,21 @@
 import { generateStreamToken } from "../lib/stream.js";
 
 /**
- * Contrôleur de génération de token Stream Chat
- * Génère un token d'authentification pour l'utilisateur connecté
- * permettant l'accès aux fonctionnalités de chat en temps réel
+ * Génère un token d'accès Stream Chat pour l'utilisateur authentifié afin de
+ * permettre l'accès sécurisé aux fonctionnalités temps réel côté client.
  */
 export async function getStreamToken(req, res) {
-	try {
-		// Génération du token Stream basé sur l'ID utilisateur
-		const token = generateStreamToken(req.user.id);
+        try {
+                // Crée un token Stream signé associé à l'identifiant utilisateur authentifié.
+                const token = generateStreamToken(req.user.id);
 
-		// Retour du token au client pour l'authentification Stream
-		res.status(200).json({ token });
-	} catch (error) {
-		// Logging de l'erreur pour le débogage
-		console.log("Erreur dans le contrôleur getStreamToken :", error.message);
+                // Retourne le token afin que le client puisse s'authentifier auprès de Stream Chat.
+                res.status(200).json({ token });
+        } catch (error) {
+                // Journalise l'erreur avec le contexte nécessaire au diagnostic.
+                console.log("Erreur dans le contrôleur getStreamToken :", error.message);
 
-		// Réponse d'erreur générique au client
-		res.status(500).json({ message: "Erreur interne du serveur" });
-	}
+                // Fournit une réponse générique pour éviter les fuites d'information.
+                res.status(500).json({ message: "Erreur interne du serveur" });
+        }
 }
