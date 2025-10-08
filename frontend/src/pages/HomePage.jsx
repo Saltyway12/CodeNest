@@ -5,32 +5,27 @@ import {
   ArrowRight as ArrowRightIcon,
   BellRing as BellRingIcon,
   CheckCircle as CheckCircleIcon,
+  Code2 as Code2Icon,
   MapPin as MapPinIcon,
   MessageCircle as MessageCircleIcon,
   Sparkles as SparklesIcon,
   UserPlus as UserPlusIcon,
   Users as UsersIcon,
 } from "lucide-react";
-import {
-  getFriendRequests,
-  getOutgoingFriendReqs,
-  getRecommendedUsers,
-  getUserFriends,
-  sendFriendRequest,
-} from "../lib/api";
+import { getFriendRequests, getOutgoingFriendReqs, getRecommendedUsers, getUserFriends, sendFriendRequest } from '../lib/api';
 import { capitialize } from "../lib/utils";
 import FriendCard, { getLanguageFlag, getProgrammingLogo } from "../components/FriendCard";
 import NoFriendsFound from "../components/NoFriendsFound";
 
 /**
- * Page d'accueil de l'application.
- * Réorganisée pour mettre en avant la collaboration et guider l'utilisateur
- * vers les actions prioritaires (messagerie, fonctionnalités et notifications).
+ * Page d'accueil de l'application
+ * Réorganisée pour mettre en avant l'éditeur collaboratif et les actions rapides
  */
 const HomePage = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
+  // Stockage des IDs de demandes d'amis envoyées pour optimiser les vérifications
   const [outgoingRequestsIds, setOutgoingRequestsIds] = useState(() => new Set());
   const [incomingRequestsIds, setIncomingRequestsIds] = useState(() => new Set());
 
@@ -49,11 +44,13 @@ const HomePage = () => {
     queryFn: getOutgoingFriendReqs,
   });
 
+  // Requête pour les demandes entrantes
   const { data: friendRequestsData } = useQuery({
     queryKey: ["friendRequests", "home"],
     queryFn: getFriendRequests,
   });
 
+  // Mutation pour l'envoi de nouvelles demandes d'amitié
   const { mutate: sendRequestMutation, isPending } = useMutation({
     mutationFn: sendFriendRequest,
     onSuccess: () => {
@@ -66,39 +63,50 @@ const HomePage = () => {
   const hasFriends = useMemo(() => friends.length > 0, [friends.length]);
 
   useEffect(() => {
-    const nextIds = new Set();
-    outgoingFriendRequests?.forEach((req) => {
-      nextIds.add(req.recipient._id);
-    });
-    setOutgoingRequestsIds(nextIds);
+    const outgoingIds = new Set();
+    if (outgoingFriendRequests && outgoingFriendRequests.length > 0) {
+      outgoingFriendRequests.forEach((req) => {
+        outgoingIds.add(req.recipient._id);
+      });
+    }
+    setOutgoingRequestsIds(outgoingIds);
   }, [outgoingFriendRequests]);
 
   useEffect(() => {
-    const nextIncomingIds = new Set();
-    const incomingReqs = friendRequestsData?.incomingReqs ?? [];
+    const incoming = friendRequestsData?.incomingReqs ?? [];
+    const incomingIds = new Set();
 
-    incomingReqs.forEach((req) => {
-      nextIncomingIds.add(req.sender._id);
+    incoming.forEach((req) => {
+      incomingIds.add(req.sender._id);
     });
 
-    setIncomingRequestsIds(nextIncomingIds);
+    setIncomingRequestsIds(incomingIds);
   }, [friendRequestsData]);
+
+  const handleStartSession = () => {
+    const sessionId = window.crypto?.randomUUID
+      ? window.crypto.randomUUID()
+      : Math.random().toString(36).slice(2, 10);
+
+    navigate(`/appel/${sessionId}`);
+  };
 
   const handleOpenFeatures = () => navigate("/fonctionnalites");
 
   const handleOpenMessages = () => {
-    if (hasFriends) {
+    if (friends.length > 0) {
       navigate(`/chat/${friends[0]._id}`);
       return;
     }
-
     navigate("/notifications");
   };
+
+  const hasFriends = useMemo(() => friends.length > 0, [friends.length]);
 
   return (
     <div className="min-h-screen p-4 sm:p-6 lg:p-8">
       <div className="container mx-auto space-y-12">
-        {/* Section de mise en avant */}
+        {/* Hero principal */}
         <section className="grid gap-6 lg:grid-cols-[2fr,1fr] items-stretch">
           <div className="card bg-gradient-to-br from-primary/20 via-primary/10 to-base-200 border border-primary/20">
             <div className="card-body p-6 sm:p-8 space-y-4">
@@ -107,19 +115,18 @@ const HomePage = () => {
                 Collaboration en direct
               </span>
               <h1 className="text-3xl sm:text-4xl font-bold leading-tight">
-                Coopérez, échangez et progressez ensemble.
+                Lancez votre atelier de code collaboratif en un clic.
               </h1>
               <p className="text-base-content/80 max-w-2xl">
-                Gérez vos projets depuis la messagerie : lancez un appel, partagez votre code
-                en temps réel et organisez vos sessions avec votre communauté.
+                Partagez du code, discutez en temps réel et progressez avec votre communauté sans quitter CodeNest.
               </p>
               <div className="flex flex-wrap gap-3">
+                <button type="button" className="btn btn-primary" onClick={handleStartSession}>
+                  <Code2Icon className="size-4 mr-2" />
+                  Démarrer une session
+                </button>
                 <button type="button" className="btn btn-outline" onClick={handleOpenFeatures}>
                   Explorer les fonctionnalités
-                  <ArrowRightIcon className="size-4 ml-2" />
-                </button>
-                <button type="button" className="btn btn-ghost" onClick={handleOpenMessages}>
-                  Ouvrir la messagerie
                   <ArrowRightIcon className="size-4 ml-2" />
                 </button>
               </div>
@@ -154,7 +161,7 @@ const HomePage = () => {
           </div>
         </section>
 
-        {/* Liste des amis existants */}
+        {/* Section des amis existants */}
         <section className="space-y-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
@@ -184,7 +191,7 @@ const HomePage = () => {
           )}
         </section>
 
-        {/* Recommandations d'utilisateurs */}
+        {/* Section des recommandations d'utilisateurs */}
         <section className="space-y-6">
           <div>
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Rencontrez de nouveaux binômes</h2>
@@ -216,6 +223,8 @@ const HomePage = () => {
                     className="card bg-base-200 border border-base-300 hover:border-primary/40 hover:shadow-lg transition-all duration-300"
                   >
                     <div className="card-body p-5 space-y-4">
+
+                      {/* Profil utilisateur avec avatar et informations de base */}
                       <div className="flex items-center gap-3">
                         <div className="avatar size-16 rounded-full">
                           <img src={user.profilePic} alt={user.fullName} />
@@ -246,7 +255,6 @@ const HomePage = () => {
                       {user.bio && <p className="text-sm opacity-70">{user.bio}</p>}
 
                       <button
-                        type="button"
                         className="btn btn-primary w-full mt-2"
                         onClick={() => sendRequestMutation(user._id)}
                         disabled={hasRequestBeenSent || hasIncomingRequest || isPending}
