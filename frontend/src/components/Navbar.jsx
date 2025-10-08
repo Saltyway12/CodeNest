@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router';
-import { useStreamChat } from '../context/StreamChatContext'; // Import du contexte custom
+import useStreamChat from '../context/useStreamChat'; // Import du contexte custom
 import useAuthUser from '../hooks/useAuthUser';
 import useLogout from '../hooks/useLogout';
 import { useNotifications } from '../hooks/useNotifications';
