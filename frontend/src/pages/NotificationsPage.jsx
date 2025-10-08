@@ -1,7 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { acceptFriendRequest, getFriendRequests } from "../lib/api";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { BellIcon, ClockIcon, MessageSquareIcon, UserCheckIcon } from "lucide-react";
+import { Link } from "react-router-dom";
+import { acceptFriendRequest } from "../lib/api";
 import NoNotificationsFound from "../components/NoNotificationsFound.jsx";
+import useStreamChat from "../context/useStreamChat";
+import { useNotifications } from "../hooks/useNotifications";
 
 /**
  * Page de gestion des notifications et demandes d'amitié
@@ -10,12 +13,13 @@ import NoNotificationsFound from "../components/NoNotificationsFound.jsx";
  */
 const NotificationsPage = () => {
   const queryClient = useQueryClient();
-
-  // Récupération des demandes d'amitié (reçues et acceptées)
-  const { data: friendRequests, isLoading } = useQuery({
-    queryKey: ["friendRequests"],
-    queryFn: getFriendRequests,
-  });
+  const { chatClient } = useStreamChat();
+  const {
+    friendRequests,
+    unreadChannels,
+    unreadMessagesCount,
+    isLoadingFriendRequests,
+  } = useNotifications(chatClient);
 
   // Mutation pour accepter une demande d'amitié
   const { mutate: acceptRequestMutation, isPending } = useMutation({
@@ -29,18 +33,105 @@ const NotificationsPage = () => {
 
   const incomingRequests = friendRequests?.incomingReqs || [];
   const acceptedRequests = friendRequests?.acceptedReqs || [];
+  const hasNotifications =
+    incomingRequests.length > 0 ||
+    acceptedRequests.length > 0 ||
+    (unreadChannels?.length ?? 0) > 0;
+
+  const formatMessageDate = (date) => {
+    if (!date) return "";
+    const parsed = new Date(date);
+    if (Number.isNaN(parsed.getTime())) return "";
+
+    return parsed.toLocaleString("fr-FR", {
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="container mx-auto max-w-4xl space-y-8">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-6">Notifications</h1>
 
-        {isLoading ? (
+        {isLoadingFriendRequests ? (
           <div className="flex justify-center py-12">
             <span className="loading loading-spinner loading-lg"></span>
           </div>
         ) : (
           <>
+            {/* Section des messages non lus */}
+            {unreadChannels?.length > 0 && (
+              <section className="space-y-4">
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                  <MessageSquareIcon className="h-5 w-5 text-accent" />
+                  Messages non lus
+                  <span className="badge badge-accent ml-2">
+                    {unreadMessagesCount}
+                  </span>
+                </h2>
+
+                <div className="space-y-3">
+                  {unreadChannels.map((channel) => {
+                    const preview = channel.lastMessageText?.trim();
+                    const truncatedPreview = preview
+                      ? preview.length > 120
+                        ? `${preview.slice(0, 117)}...`
+                        : preview
+                      : "Vous avez reçu un nouveau message.";
+
+                    return (
+                      <div
+                        key={channel.cid}
+                        className="card bg-base-200 shadow-sm hover:shadow-md transition-shadow"
+                      >
+                        <div className="card-body p-4">
+                          <div className="flex items-start gap-3">
+                            <div className="avatar mt-1 size-12 rounded-full">
+                              <img
+                                src={channel.participant?.image}
+                                alt={channel.participant?.name}
+                              />
+                            </div>
+                            <div className="flex-1 space-y-2">
+                              <div className="flex flex-wrap items-center gap-2 justify-between">
+                                <div>
+                                  <h3 className="font-semibold">
+                                    {channel.participant?.name || "Conversation"}
+                                  </h3>
+                                  <p className="text-xs opacity-70">
+                                    Dernier message : {formatMessageDate(channel.lastMessageAt)}
+                                  </p>
+                                </div>
+                                <span className="badge badge-primary">
+                                  {channel.unreadCount} nouveau{channel.unreadCount > 1 ? "x" : ""} message{channel.unreadCount > 1 ? "s" : ""}
+                                </span>
+                              </div>
+
+                              <p className="text-sm text-base-content/80">
+                                {truncatedPreview}
+                              </p>
+
+                              {channel.participant?.id && (
+                                <div className="flex justify-end">
+                                  <Link
+                                    to={`/chat/${channel.participant.id}`}
+                                    className="btn btn-sm btn-outline"
+                                  >
+                                    Ouvrir la conversation
+                                  </Link>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
             {/* Section des demandes d'amitié reçues */}
             {incomingRequests.length > 0 && (
               <section className="space-y-4">
@@ -132,7 +223,7 @@ const NotificationsPage = () => {
             )}
 
             {/* Affichage si aucune notification disponible */}
-            {incomingRequests.length === 0 && acceptedRequests.length === 0 && (
+            {!hasNotifications && (
               <NoNotificationsFound />
             )}
           </>

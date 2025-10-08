@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getFriendRequests } from "../lib/api";
 
@@ -12,9 +12,13 @@ import { getFriendRequests } from "../lib/api";
  */
 export const useNotifications = (streamClient) => {
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+  const [unreadChannels, setUnreadChannels] = useState([]);
 
   // Récupération des demandes d'amis via React Query
-  const { data: friendRequests } = useQuery({
+  const {
+    data: friendRequests,
+    isLoading: isLoadingFriendRequests,
+  } = useQuery({
     queryKey: ["friendRequests"],
     queryFn: getFriendRequests,
     refetchInterval: 30000,
@@ -25,6 +29,8 @@ export const useNotifications = (streamClient) => {
   useEffect(() => {
     const userId = streamClient?.userID;
     if (!streamClient || !userId) {
+      setUnreadMessagesCount(0);
+      setUnreadChannels([]);
       return undefined;
     }
 
@@ -34,17 +40,63 @@ export const useNotifications = (streamClient) => {
       try {
         const channels = await streamClient.queryChannels(
           { members: { $in: [userId] } },
-          {},
-          { state: true, watch: true }
+          [{ last_message_at: -1 }],
+          { state: true, watch: true, message_limit: 1 }
         );
 
-        const total = channels.reduce((sum, channel) => {
-          const unreadForUser = channel?.state?.read?.[userId]?.unread_messages ?? 0;
-          return sum + unreadForUser;
-        }, 0);
+        let aggregatedUnread = 0;
+
+        const channelsWithUnread = channels
+          .map((channel) => {
+            const unreadForUser =
+              channel?.state?.read?.[userId]?.unread_messages ?? 0;
+
+            if (!unreadForUser) {
+              return null;
+            }
+
+            aggregatedUnread += unreadForUser;
+
+            const members = Object.values(channel?.state?.members ?? {});
+            const otherMember = members.find(
+              (member) => member?.user?.id && member.user.id !== userId
+            )?.user;
+
+            if (!otherMember) {
+              return null;
+            }
+
+            const messages = channel?.state?.messages ?? [];
+            const lastMessage = messages[messages.length - 1];
+            const lastMessageAt =
+              lastMessage?.created_at ??
+              channel?.state?.last_message_at ??
+              channel?.last_message_at ??
+              null;
+
+            return {
+              cid: channel.cid,
+              channelId: channel.id,
+              unreadCount: unreadForUser,
+              participant: {
+                id: otherMember.id,
+                name: otherMember.name || otherMember.id,
+                image: otherMember.image,
+              },
+              lastMessageText: lastMessage?.text ?? "",
+              lastMessageAt,
+            };
+          })
+          .filter(Boolean)
+          .sort((a, b) => {
+            const dateA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+            const dateB = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+            return dateB - dateA;
+          });
 
         if (isActive) {
-          setUnreadMessagesCount(total);
+          setUnreadMessagesCount(aggregatedUnread);
+          setUnreadChannels(channelsWithUnread);
         }
       } catch (error) {
         console.error("Erreur récupération messages non lus:", error);
@@ -57,12 +109,14 @@ export const useNotifications = (streamClient) => {
     const handleMessageRead = () => updateUnreadCount();
 
     streamClient.on("message.new", handleNewMessage);
+    streamClient.on("notification.message_new", handleNewMessage);
     streamClient.on("message.read", handleMessageRead);
     streamClient.on("notification.mark_read", handleMessageRead);
 
     return () => {
       isActive = false;
       streamClient.off("message.new", handleNewMessage);
+      streamClient.off("notification.message_new", handleNewMessage);
       streamClient.off("message.read", handleMessageRead);
       streamClient.off("notification.mark_read", handleMessageRead);
     };
@@ -72,6 +126,9 @@ export const useNotifications = (streamClient) => {
     totalCount: friendRequestsCount + unreadMessagesCount,
     friendRequestsCount,
     unreadMessagesCount,
+    unreadChannels,
+    friendRequests,
+    isLoadingFriendRequests,
   };
 };
 export default useNotifications;
