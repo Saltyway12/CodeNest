@@ -1,11 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
 import useAuthUser from "../hooks/useAuthUser";
-import { Bell as BellIcon, Home as HomeIcon, MessageSquareCode, Sparkles as SparklesIcon, Users as UsersIcon } from 'lucide-react';
+import { Bell as BellIcon, Home as HomeIcon, MessageSquareCode, Sparkles as SparklesIcon } from "lucide-react";
 
 /**
- * Composant sidebar de navigation latérale
- * Menu principal avec logo, navigation et profil utilisateur
- * Affiché uniquement sur écrans larges (lg+)
+ * Navigation latérale persistante affichée sur les écrans larges (≥ lg).
+ * Expose la signalétique produit, les entrées de navigation principales et un
+ * rappel du profil connecté en s'appuyant sur les informations fournies par
+ * `useAuthUser`.
  */
 const Sidebar = () => {
   const { authUser } = useAuthUser();
@@ -14,7 +15,7 @@ const Sidebar = () => {
 
   return (
     <aside className="w-64 bg-base-200 border-r border-base-300 hidden lg:flex flex-col h-screen sticky top-0">
-      {/* En-tête avec logo de l'application */}
+      {/* Marque et retour à l'accueil */}
       <div className="p-5 border-b border-base-300">
         <Link to="/" className="flex items-center gap-2.5">
           <MessageSquareCode className="size-9 text-primary" />
@@ -24,7 +25,7 @@ const Sidebar = () => {
         </Link>
       </div>
     
-      {/* Navigation principale avec liens actifs */}
+      {/* Liens principaux avec état actif basé sur le chemin courant */}
       <nav className="flex-1 p-4 space-y-1">
         <Link
           to="/"
@@ -57,7 +58,7 @@ const Sidebar = () => {
         </Link>
       </nav>
 
-      {/* Section profil utilisateur en bas de la sidebar */}
+      {/* Résumé du profil connecté */}
       <div className="p-4 border-t border-base-300 mt-auto">
         <div className="flex items-center gap-3">
           <div className="avatar">

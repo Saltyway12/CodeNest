@@ -2,10 +2,13 @@ import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
 
 /**
- * Composant de mise en page principal de l'application
- * Structure avec sidebar optionnelle et navbar fixe
- * @param {React.ReactNode} children - Contenu principal à afficher
- * @param {boolean} showSidebar - Affichage conditionnel de la sidebar
+ * Enveloppe structurelle qui expose la grille principale de l'application.
+ * Permet d'activer la sidebar de navigation tout en conservant une barre
+ * supérieure systématique. Les enfants sont rendus dans une zone scrollable
+ * pour éviter que la navigation ne soit rechargée.
+ *
+ * @param {React.ReactNode} children - Contenu métier à afficher.
+ * @param {boolean} showSidebar - Active le rendu de la navigation latérale.
  */
 const Layout = ({ children, showSidebar = false }) => {
   return (

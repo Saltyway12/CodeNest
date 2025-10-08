@@ -17,9 +17,10 @@ import { useThemeStore } from "./store/useThemeStore.js";
 import { StreamChatProvider } from "./context/StreamChatContext.jsx";
 
 /**
- * Composant racine de l'application
- * Gère le routage principal et la logique d'authentification
- * Applique les redirections basées sur le statut utilisateur
+ * Point d'entrée de l'interface.
+ * Centralise la configuration du routage côté client et les protections
+ * conditionnelles en fonction de l'état d'authentification/onboarding issu du
+ * hook `useAuthUser`.
  */
 const App = () => {
   const { isLoading, authUser } = useAuthUser();

@@ -101,8 +101,6 @@ const HomePage = () => {
     navigate("/notifications");
   };
 
-  const hasFriends = useMemo(() => friends.length > 0, [friends.length]);
-
   return (
     <div className="min-h-screen p-4 sm:p-6 lg:p-8">
       <div className="container mx-auto space-y-12">

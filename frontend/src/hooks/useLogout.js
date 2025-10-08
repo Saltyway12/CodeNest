@@ -2,30 +2,26 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { logout } from "../lib/api";
 
 /**
- * Hook personnalisé pour la gestion de la déconnexion utilisateur
- * Utilise useMutation pour traiter la déconnexion avec invalidation de cache
- * Nettoie automatiquement les données utilisateur après déconnexion
+ * Encapsule la mutation de déconnexion et applique l'invalidation du cache
+ * `authUser` dès que la session serveur est détruite.
  */
 const useLogout = () => {
-	const queryClient = useQueryClient();
+  const queryClient = useQueryClient();
 
-	const {
-		mutate: logoutMutation,
-		isPending,
-		error,
-	} = useMutation({
-		// Fonction API pour la déconnexion utilisateur
-		mutationFn: logout,
+  const {
+    mutate: logoutMutation,
+    isPending,
+    error,
+  } = useMutation({
+    mutationFn: logout,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["authUser"] }),
+  });
 
-		// Invalidation du cache utilisateur après déconnexion réussie
-		onSuccess: () => queryClient.invalidateQueries({ queryKey: ["authUser"] }),
-	});
-
-	return {
-		logoutMutation, // Fonction de déclenchement de la déconnexion
-		isPending, // État de chargement de la requête
-		error, // Objet d'erreur en cas d'échec
-	};
+  return {
+    logoutMutation,
+    isPending,
+    error,
+  };
 };
 
 export default useLogout;
