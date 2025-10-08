@@ -1,14 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
-  ArrowRight as ArrowRightIcon,
-  BellRing as BellRingIcon,
   CheckCircle as CheckCircleIcon,
-  Code2 as Code2Icon,
   MapPin as MapPinIcon,
-  MessageCircle as MessageCircleIcon,
-  Sparkles as SparklesIcon,
   UserPlus as UserPlusIcon,
   Users as UsersIcon,
 } from "lucide-react";
@@ -19,11 +14,10 @@ import NoFriendsFound from "../components/NoFriendsFound";
 
 /**
  * Page d'accueil de l'application
- * Réorganisée pour mettre en avant l'éditeur collaboratif et les actions rapides
+ * Focalisée sur le suivi des collaborations existantes et les recommandations de binômes
  */
 const HomePage = () => {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
 
   // Stockage des IDs de demandes d'amis envoyées pour optimiser les vérifications
   const [outgoingRequestsIds, setOutgoingRequestsIds] = useState(() => new Set());
@@ -83,82 +77,9 @@ const HomePage = () => {
     setIncomingRequestsIds(incomingIds);
   }, [friendRequestsData]);
 
-  const handleStartSession = () => {
-    const sessionId = window.crypto?.randomUUID
-      ? window.crypto.randomUUID()
-      : Math.random().toString(36).slice(2, 10);
-
-    navigate(`/appel/${sessionId}`);
-  };
-
-  const handleOpenFeatures = () => navigate("/fonctionnalites");
-
-  const handleOpenMessages = () => {
-    if (friends.length > 0) {
-      navigate(`/chat/${friends[0]._id}`);
-      return;
-    }
-    navigate("/notifications");
-  };
-
   return (
     <div className="min-h-screen p-4 sm:p-6 lg:p-8">
       <div className="container mx-auto space-y-12">
-        {/* Hero principal */}
-        <section className="grid gap-6 lg:grid-cols-[2fr,1fr] items-stretch">
-          <div className="card bg-gradient-to-br from-primary/20 via-primary/10 to-base-200 border border-primary/20">
-            <div className="card-body p-6 sm:p-8 space-y-4">
-              <span className="inline-flex items-center gap-2 text-sm font-medium text-primary">
-                <SparklesIcon className="size-4" />
-                Collaboration en direct
-              </span>
-              <h1 className="text-3xl sm:text-4xl font-bold leading-tight">
-                Lancez votre atelier de code collaboratif en un clic.
-              </h1>
-              <p className="text-base-content/80 max-w-2xl">
-                Partagez du code, discutez en temps réel et progressez avec votre communauté sans quitter CodeNest.
-              </p>
-              <div className="flex flex-wrap gap-3">
-                <button type="button" className="btn btn-primary" onClick={handleStartSession}>
-                  <Code2Icon className="size-4 mr-2" />
-                  Démarrer une session
-                </button>
-                <button type="button" className="btn btn-outline" onClick={handleOpenFeatures}>
-                  Explorer les fonctionnalités
-                  <ArrowRightIcon className="size-4 ml-2" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="card bg-base-200 border border-base-300">
-            <div className="card-body p-6 space-y-4">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <UsersIcon className="size-5 text-primary" />
-                Raccourcis
-              </h2>
-              <div className="space-y-3 text-sm">
-                <button
-                  type="button"
-                  className="btn btn-ghost justify-start w-full gap-2"
-                  onClick={handleOpenMessages}
-                >
-                  <MessageCircleIcon className="size-4" />
-                  {hasFriends ? "Continuer vos conversations" : "Découvrir vos notifications"}
-                </button>
-                <Link to="/notifications" className="btn btn-ghost justify-start w-full gap-2">
-                  <BellRingIcon className="size-4" />
-                  Gérer les demandes d'amis
-                </Link>
-                <Link to="/profil" className="btn btn-ghost justify-start w-full gap-2">
-                  <CheckCircleIcon className="size-4" />
-                  Mettre à jour votre profil
-                </Link>
-              </div>
-            </div>
-          </div>
-        </section>
-
         {/* Section des amis existants */}
         <section className="space-y-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
