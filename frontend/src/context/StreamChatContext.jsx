@@ -1,12 +1,11 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StreamChat } from 'stream-chat';
 import { useQuery } from '@tanstack/react-query';
 import { getStreamToken } from '../lib/api';
 import useAuthUser from '../hooks/useAuthUser';
+import StreamChatContext from './StreamChatContext.js';
 
 const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
-
-const StreamChatContext = createContext(null);
 
 /**
  * Provider pour le client Stream Chat global
@@ -15,6 +14,7 @@ const StreamChatContext = createContext(null);
  */
 export const StreamChatProvider = ({ children }) => {
   const [chatClient, setChatClient] = useState(null);
+  const chatClientRef = useRef(null);
   const { authUser } = useAuthUser();
 
   // Récupération du token Stream
@@ -26,12 +26,25 @@ export const StreamChatProvider = ({ children }) => {
 
   // Initialisation du client Stream (une seule fois)
   useEffect(() => {
+    if (!tokenData?.token || !authUser) {
+      return () => {
+        if (chatClientRef.current) {
+          chatClientRef.current.disconnectUser();
+          chatClientRef.current = null;
+          setChatClient(null);
+        }
+      };
+    }
+
+    let isCancelled = false;
+    let clientInstance;
+
     const initClient = async () => {
-      if (!tokenData?.token || !authUser || chatClient) return;
+      if (chatClientRef.current) return;
 
       try {
         console.log('Initialisation du client Stream global...');
-        
+
         const client = StreamChat.getInstance(STREAM_API_KEY);
 
         await client.connectUser(
@@ -43,6 +56,13 @@ export const StreamChatProvider = ({ children }) => {
           tokenData.token
         );
 
+        if (isCancelled) {
+          client.disconnectUser();
+          return;
+        }
+
+        clientInstance = client;
+        chatClientRef.current = client;
         setChatClient(client);
         console.log('✅ Client Stream connecté');
       } catch (error) {
@@ -54,10 +74,18 @@ export const StreamChatProvider = ({ children }) => {
 
     // Cleanup : déconnexion lors du démontage
     return () => {
-      if (chatClient) {
-        chatClient.disconnectUser();
-        setChatClient(null);
+      isCancelled = true;
+      const client = clientInstance ?? chatClientRef.current;
+
+      if (client) {
+        client.disconnectUser();
       }
+
+      if (chatClientRef.current) {
+        chatClientRef.current = null;
+      }
+
+      setChatClient(null);
     };
   }, [tokenData, authUser]);
 
@@ -66,15 +94,4 @@ export const StreamChatProvider = ({ children }) => {
       {children}
     </StreamChatContext.Provider>
   );
-};
-
-/**
- * Hook pour accéder au client Stream partout dans l'app
- */
-export const useStreamChat = () => {
-  const context = useContext(StreamChatContext);
-  if (!context) {
-    throw new Error('useStreamChat doit être utilisé dans StreamChatProvider');
-  }
-  return context;
 };

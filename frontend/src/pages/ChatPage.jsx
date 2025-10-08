@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router";
-import { useStreamChat } from "../context/StreamChatContext";
+import useStreamChat from "../context/useStreamChat";
 
 import {
   Channel,
