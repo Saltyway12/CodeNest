@@ -286,7 +286,7 @@ const CodeEditor = () => {
           </div>
 
           {connectionStatus === "connected" && (
-            <div className="text-xs text-success">Synchronisation active</div>
+            <div className="text-xs text-success">Synchro temps réel</div>
           )}
         </div>
 

@@ -34,8 +34,8 @@ const CallPage = () => {
   const { authUser, isLoading } = useAuthUser();
 
   // Récupération du token Stream pour l'authentification
-  const { data: tokenData } = useQuery({
-    queryKey: ["streamToken"],
+  const { data: tokenData, error: tokenError } = useQuery({
+    queryKey: ["streamToken", authUser?._id],
     queryFn: getStreamToken,
     enabled: !!authUser,
   });
@@ -75,6 +75,13 @@ const CallPage = () => {
 
     initCall();
   }, [tokenData, authUser, callId]);
+
+  useEffect(() => {
+    if (tokenError) {
+      console.error("Erreur lors de la récupération du token Stream Video:", tokenError);
+      toast.error("Le service d'appel vidéo est momentanément indisponible.");
+    }
+  }, [tokenError]);
 
   // Affichage du loader pendant l'initialisation
   if (isLoading || isConnecting) return <PageLoader />;
