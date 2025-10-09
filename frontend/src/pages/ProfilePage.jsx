@@ -71,13 +71,8 @@ const ProfilePage = () => {
     mutationFn: deleteAccount,
     onSuccess: async () => {
       toast.success("Votre compte a été supprimé.");
-
-      await queryClient.cancelQueries({ queryKey: ["authUser"] });
-      queryClient.setQueryData(["authUser"], null);
-      queryClient.removeQueries({ queryKey: ["streamToken"] });
-
+      queryClient.clear();
       navigate("/connexion", { replace: true });
-      window.location.assign("/connexion");
     },
     onError: (error) => {
       toast.error(error?.response?.data?.message || "Impossible de supprimer votre compte.");
