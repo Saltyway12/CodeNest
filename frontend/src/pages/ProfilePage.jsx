@@ -72,7 +72,7 @@ const ProfilePage = () => {
     onSuccess: () => {
       toast.success("Votre compte a été supprimé.");
       queryClient.clear();
-      navigate("/connexion");
+      navigate("/connexion", { replace: true });
     },
     onError: (error) => {
       toast.error(error?.response?.data?.message || "Impossible de supprimer votre compte.");
@@ -354,7 +354,7 @@ const ProfilePage = () => {
           </form>
 
           <div className="mt-10 border-t border-base-300 pt-6">
-            <h2 className="text-lg font-semibold text-error">Zone sensible</h2>
+            <h2 className="text-lg font-semibold text-error">Supprimer mon compte</h2>
             <p className="text-sm text-base-content/70 mt-1">
               La suppression de votre compte est définitive et entraînera la perte de vos données et
               connexions.
