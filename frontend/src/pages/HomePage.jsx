@@ -7,9 +7,18 @@ import {
   UserPlus as UserPlusIcon,
   Users as UsersIcon,
 } from "lucide-react";
-import { getFriendRequests, getOutgoingFriendReqs, getRecommendedUsers, getUserFriends, sendFriendRequest } from '../lib/api';
-import { capitialize } from "../lib/utils";
-import FriendCard, { getLanguageFlag, getProgrammingLogo } from "../components/FriendCard";
+import {
+  getFriendRequests,
+  getOutgoingFriendReqs,
+  getRecommendedUsers,
+  getUserFriends,
+  sendFriendRequest,
+} from "../lib/api";
+import { capitalize } from "../lib/utils";
+import FriendCard, {
+  getLanguageFlag,
+  getProgrammingLogo,
+} from "../components/FriendCard";
 import NoFriendsFound from "../components/NoFriendsFound";
 
 /**
@@ -20,8 +29,12 @@ const HomePage = () => {
   const queryClient = useQueryClient();
 
   // Stockage des IDs de demandes d'amis envoyées pour optimiser les vérifications
-  const [outgoingRequestsIds, setOutgoingRequestsIds] = useState(() => new Set());
-  const [incomingRequestsIds, setIncomingRequestsIds] = useState(() => new Set());
+  const [outgoingRequestsIds, setOutgoingRequestsIds] = useState(
+    () => new Set(),
+  );
+  const [incomingRequestsIds, setIncomingRequestsIds] = useState(
+    () => new Set(),
+  );
 
   const { data: friends = [], isLoading: loadingFriends } = useQuery({
     queryKey: ["friends"],
@@ -84,9 +97,12 @@ const HomePage = () => {
         <section className="space-y-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Vos espaces de collaboration</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
+                Vos espaces de collaboration
+              </h2>
               <p className="opacity-70">
-                Retrouvez vos partenaires actuels pour coder, réviser et évoluer ensemble.
+                Retrouvez vos partenaires actuels pour coder, réviser et évoluer
+                ensemble.
               </p>
             </div>
             <Link to="/notifications" className="btn btn-outline btn-sm">
@@ -113,9 +129,12 @@ const HomePage = () => {
         {/* Section des recommandations d'utilisateurs */}
         <section className="space-y-6">
           <div>
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Rencontrez de nouveaux binômes</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
+              Rencontrez de nouveaux binômes
+            </h2>
             <p className="opacity-70">
-              Trouvez des partenaires complémentaires selon vos langues parlées et vos objectifs techniques.
+              Trouvez des partenaires complémentaires selon vos langues parlées
+              et vos objectifs techniques.
             </p>
           </div>
 
@@ -125,7 +144,9 @@ const HomePage = () => {
             </div>
           ) : recommendedUsers.length === 0 ? (
             <div className="card bg-base-200 p-6 text-center">
-              <h3 className="font-semibold text-lg mb-2">Pas de recommandations actuellement</h3>
+              <h3 className="font-semibold text-lg mb-2">
+                Pas de recommandations actuellement
+              </h3>
               <p className="text-base-content/70">
                 Revenez plus tard pour découvrir de nouveaux utilisateurs !
               </p>
@@ -142,7 +163,6 @@ const HomePage = () => {
                     className="card bg-base-200 border border-base-300 hover:border-primary/40 hover:shadow-lg transition-all duration-300"
                   >
                     <div className="card-body p-5 space-y-4">
-
                       {/* Profil utilisateur avec avatar et informations de base */}
                       <div className="flex items-center gap-3">
                         <div className="avatar size-16 rounded-full">
@@ -150,7 +170,9 @@ const HomePage = () => {
                         </div>
 
                         <div>
-                          <h3 className="font-semibold text-lg">{user.fullName}</h3>
+                          <h3 className="font-semibold text-lg">
+                            {user.fullName}
+                          </h3>
                           {user.location && (
                             <div className="flex items-center text-xs opacity-70 mt-1">
                               <MapPinIcon className="size-3 mr-1" />
@@ -163,20 +185,24 @@ const HomePage = () => {
                       <div className="flex flex-wrap gap-1.5">
                         <span className="badge badge-secondary">
                           {getLanguageFlag(user.nativeLanguage)}
-                          Langue parlée: {capitialize(user.nativeLanguage)}
+                          Langue parlée: {capitalize(user.nativeLanguage)}
                         </span>
                         <span className="badge badge-outline">
                           {getProgrammingLogo(user.learningLanguage)}
-                          Apprenant: {capitialize(user.learningLanguage)}
+                          Apprenant: {capitalize(user.learningLanguage)}
                         </span>
                       </div>
 
-                      {user.bio && <p className="text-sm opacity-70">{user.bio}</p>}
+                      {user.bio && (
+                        <p className="text-sm opacity-70">{user.bio}</p>
+                      )}
 
                       <button
                         className="btn btn-primary w-full mt-2"
                         onClick={() => sendRequestMutation(user._id)}
-                        disabled={hasRequestBeenSent || hasIncomingRequest || isPending}
+                        disabled={
+                          hasRequestBeenSent || hasIncomingRequest || isPending
+                        }
                       >
                         {hasIncomingRequest ? (
                           <>

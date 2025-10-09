@@ -13,14 +13,14 @@ const rooms = new Map();
  * @returns {object} Objet salle contenant les clients connectés et le contenu partagé
  */
 function getRoom(callId) {
-        if (!rooms.has(callId)) {
-                rooms.set(callId, {
-                        clients: new Set(),
-                        content: "", // Contenu collaboratif initial vide
-                        language: "javascript", // Langage par défaut synchronisé
-                });
-        }
-        return rooms.get(callId);
+  if (!rooms.has(callId)) {
+    rooms.set(callId, {
+      clients: new Set(),
+      content: "", // Contenu collaboratif initial vide
+      language: "javascript", // Langage par défaut synchronisé
+    });
+  }
+  return rooms.get(callId);
 }
 
 /**
@@ -28,11 +28,10 @@ function getRoom(callId) {
  * @param {string} callId - Identifiant de la salle à nettoyer
  */
 function cleanupRoom(callId) {
-	const room = rooms.get(callId);
-	if (room && room.clients.size === 0) {
-		rooms.delete(callId);
-		console.log(`🧹 Room ${callId} supprimée (plus de clients)`);
-	}
+  const room = rooms.get(callId);
+  if (room && room.clients.size === 0) {
+    rooms.delete(callId);
+  }
 }
 
 /**
@@ -41,90 +40,81 @@ function cleanupRoom(callId) {
  * @param {string} callId - Identifiant de la salle à rejoindre
  */
 function handleConnection(ws, callId) {
-	console.log(`👤 Nouveau client connecté à la room: ${callId}`);
+  const room = getRoom(callId);
+  room.clients.add(ws);
 
-	const room = getRoom(callId);
-	room.clients.add(ws);
+  // Envoi du contenu initial de la salle au nouveau client
+  try {
+    const initialMessage = {
+      type: "INITIAL_CONTENT",
+      content: room.content,
+      language: room.language,
+      timestamp: Date.now(),
+    };
+    ws.send(JSON.stringify(initialMessage));
+  } catch (error) {
+    console.error("Erreur lors de l'envoi du contenu initial:", error);
+  }
 
-	// Envoi du contenu initial de la salle au nouveau client
-	try {
-                const initialMessage = {
-                        type: "INITIAL_CONTENT",
-                        content: room.content,
-                        language: room.language,
-                        timestamp: Date.now(),
-                };
-		ws.send(JSON.stringify(initialMessage));
-		console.log(
-			`📤 Contenu initial envoyé à ${callId}:`,
-			room.content.length,
-			"caractères"
-		);
-	} catch (error) {
-		console.error("❌ Erreur envoi contenu initial:", error);
-	}
+  // Notification aux autres clients de l'arrivée du nouveau participant
+  broadcastToRoom(
+    callId,
+    {
+      type: "USER_JOINED",
+      participantCount: room.clients.size,
+    },
+    ws, // Exclusion de l'expéditeur
+  );
 
-	// Notification aux autres clients de l'arrivée du nouveau participant
-	broadcastToRoom(
-		callId,
-		{
-			type: "USER_JOINED",
-			participantCount: room.clients.size,
-		},
-		ws // Exclusion de l'expéditeur
-	);
+  // Écoute des messages entrants du client
+  ws.on("message", (data) => {
+    try {
+      const message = JSON.parse(data.toString());
 
-	// Écoute des messages entrants du client
-	ws.on("message", (data) => {
-		try {
-			const message = JSON.parse(data.toString());
-			console.log(`📨 Message reçu de ${callId}:`, message.type);
+      switch (message.type) {
+        case "DELTA_CHANGE":
+          // Traitement des modifications collaboratives du contenu
+          handleDeltaChange(callId, message, ws);
+          break;
 
-                        switch (message.type) {
-                                case "DELTA_CHANGE":
-                                        // Traitement des modifications collaboratives du contenu
-                                        handleDeltaChange(callId, message, ws);
-                                        break;
+        case "CURSOR_POSITION":
+          // Synchronisation de la position du curseur entre clients
+          handleCursorPosition(callId, message, ws);
+          break;
 
-                                case "CURSOR_POSITION":
-                                        // Synchronisation de la position du curseur entre clients
-                                        handleCursorPosition(callId, message, ws);
-                                        break;
+        case "LANGUAGE_CHANGE":
+          handleLanguageChange(callId, message, ws);
+          break;
 
-                                case "LANGUAGE_CHANGE":
-                                        handleLanguageChange(callId, message, ws);
-                                        break;
+        default:
+          console.warn(`Type de message inconnu: ${message.type}`);
+      }
+    } catch (error) {
+      console.error("Erreur lors du parsing du message:", error);
+    }
+  });
 
-                                default:
-                                        console.warn(`⚠️ Type de message inconnu: ${message.type}`);
-                        }
-		} catch (error) {
-			console.error("❌ Erreur parsing message:", error);
-		}
-	});
+  // Gestion de la déconnexion du client
+  ws.on("close", () => {
+    room.clients.delete(ws);
 
-	// Gestion de la déconnexion du client
-	ws.on("close", () => {
-		console.log(`👋 Client déconnecté de la room: ${callId}`);
-		room.clients.delete(ws);
+    // Notification aux participants restants
+    if (room.clients.size > 0) {
+      broadcastToRoom(callId, {
+        type: "USER_LEFT",
+        participantCount: room.clients.size,
+      });
+    }
 
-		// Notification aux participants restants
-		if (room.clients.size > 0) {
-			broadcastToRoom(callId, {
-				type: "USER_LEFT",
-				participantCount: room.clients.size,
-			});
-		}
+    cleanupRoom(callId);
+  });
 
-		cleanupRoom(callId);
-	});
-
-	// Gestion des erreurs WebSocket
-	ws.on("error", (error) => {
-		console.error("❌ Erreur WebSocket:", error);
-		room.clients.delete(ws);
-		cleanupRoom(callId);
-	});
+  // Gestion des erreurs WebSocket
+  ws.on("error", (error) => {
+    console.error("Erreur WebSocket:", error);
+    room.clients.delete(ws);
+    cleanupRoom(callId);
+  });
 }
 
 /**
@@ -135,25 +125,25 @@ function handleConnection(ws, callId) {
  * @param {WebSocket} senderWs - WebSocket de l'expéditeur
  */
 function handleLanguageChange(callId, message, senderWs) {
-        const room = getRoom(callId);
-        const { language, userId } = message;
+  const room = getRoom(callId);
+  const { language, userId } = message;
 
-        if (typeof language !== "string" || language.trim() === "") {
-                console.warn("⚠️ Langage invalide reçu:", language);
-                return;
-        }
+  if (typeof language !== "string" || language.trim() === "") {
+    console.warn("Langage invalide reçu:", language);
+    return;
+  }
 
-        const normalizedLanguage = language.trim();
-        room.language = normalizedLanguage;
+  const normalizedLanguage = language.trim();
+  room.language = normalizedLanguage;
 
-        const languageMessage = {
-                type: "LANGUAGE_CHANGE",
-                language: normalizedLanguage,
-                userId,
-                timestamp: Date.now(),
-        };
+  const languageMessage = {
+    type: "LANGUAGE_CHANGE",
+    language: normalizedLanguage,
+    userId,
+    timestamp: Date.now(),
+  };
 
-        broadcastToRoom(callId, languageMessage, senderWs);
+  broadcastToRoom(callId, languageMessage, senderWs);
 }
 
 /**
@@ -164,82 +154,70 @@ function handleLanguageChange(callId, message, senderWs) {
  * @param {WebSocket} senderWs - WebSocket de l'expéditeur
  */
 function handleDeltaChange(callId, message, senderWs) {
-	const room = getRoom(callId);
-	const { changes } = message;
+  const room = getRoom(callId);
+  const { changes } = message;
 
-	// Validation de la structure des données
-	if (!Array.isArray(changes)) {
-		console.error("❌ Changes n'est pas un array:", changes);
-		return;
-	}
+  // Validation de la structure des données
+  if (!Array.isArray(changes)) {
+    console.error("La propriété changes n'est pas un tableau:", changes);
+    return;
+  }
 
-	if (changes.length === 0) {
-		console.log("⚠️ Aucun changement à appliquer");
-		return;
-	}
+  if (changes.length === 0) {
+    return;
+  }
 
-	try {
-		let content = room.content;
+  try {
+    let content = room.content;
 
-		// Tri des changements par offset décroissant
-		// Évite le décalage des indices lors de l'application séquentielle
-		const sortedChanges = [...changes].sort(
-			(a, b) => (b.rangeOffset || 0) - (a.rangeOffset || 0)
-		);
+    // Tri des changements par offset décroissant
+    // Évite le décalage des indices lors de l'application séquentielle
+    const sortedChanges = [...changes].sort(
+      (a, b) => (b.rangeOffset || 0) - (a.rangeOffset || 0),
+    );
 
-		console.log(`🔄 Application de ${sortedChanges.length} changements`);
+    // Application séquentielle des modifications
+    for (const change of sortedChanges) {
+      const rangeOffset = change.rangeOffset || 0;
+      const rangeLength = change.rangeLength || 0;
+      const text = change.text || "";
 
-		// Application séquentielle des modifications
-		for (const change of sortedChanges) {
-			const rangeOffset = change.rangeOffset || 0;
-			const rangeLength = change.rangeLength || 0;
-			const text = change.text || "";
+      // Validation des limites de modification
+      if (rangeOffset < 0 || rangeOffset > content.length) {
+        console.error(
+          `Offset invalide: ${rangeOffset}, contenu: ${content.length} caractères`,
+        );
+        continue;
+      }
 
-			// Validation des limites de modification
-			if (rangeOffset < 0 || rangeOffset > content.length) {
-				console.error(
-					`❌ Offset invalide: ${rangeOffset}, contenu: ${content.length} caractères`
-				);
-				continue;
-			}
+      if (rangeOffset + rangeLength > content.length) {
+        console.error(
+          `Intervalle invalide: offset=${rangeOffset}, length=${rangeLength}, contenu: ${content.length} caractères`,
+        );
+        continue;
+      }
 
-			if (rangeOffset + rangeLength > content.length) {
-				console.error(
-					`❌ Range invalide: offset=${rangeOffset}, length=${rangeLength}, contenu: ${content.length} caractères`
-				);
-				continue;
-			}
+      // Application de la modification au contenu
+      content =
+        content.slice(0, rangeOffset) +
+        text +
+        content.slice(rangeOffset + rangeLength);
+    }
 
-			// Application de la modification au contenu
-			content =
-				content.slice(0, rangeOffset) +
-				text +
-				content.slice(rangeOffset + rangeLength);
+    // Mise à jour du contenu partagé de la salle
+    room.content = content;
 
-			console.log(
-				`🔍 Changement appliqué: offset=${rangeOffset}, length=${rangeLength}, text="${text.substring(
-					0,
-					50
-				)}..."`
-			);
-		}
+    // Diffusion des modifications aux autres clients
+    const deltaMessage = {
+      type: "DELTA_CHANGE",
+      changes: changes, // Conservation de l'ordre original
+      timestamp: Date.now(),
+    };
 
-		// Mise à jour du contenu partagé de la salle
-		room.content = content;
-		console.log(`✅ Contenu mis à jour: ${content.length} caractères`);
-
-		// Diffusion des modifications aux autres clients
-		const deltaMessage = {
-			type: "DELTA_CHANGE",
-			changes: changes, // Conservation de l'ordre original
-			timestamp: Date.now(),
-		};
-
-		broadcastToRoom(callId, deltaMessage, senderWs);
-		console.log(`📡 Delta diffusé à ${room.clients.size - 1} clients`);
-	} catch (error) {
-		console.error("❌ Erreur application delta:", error);
-	}
+    broadcastToRoom(callId, deltaMessage, senderWs);
+  } catch (error) {
+    console.error("Erreur lors de l'application du delta:", error);
+  }
 }
 
 /**
@@ -249,15 +227,15 @@ function handleDeltaChange(callId, message, senderWs) {
  * @param {WebSocket} senderWs - WebSocket de l'expéditeur
  */
 function handleCursorPosition(callId, message, senderWs) {
-	const cursorMessage = {
-		type: "CURSOR_POSITION",
-		userId: message.userId,
-		position: message.position,
-		color: message.color,
-	};
+  const cursorMessage = {
+    type: "CURSOR_POSITION",
+    userId: message.userId,
+    position: message.position,
+    color: message.color,
+  };
 
-	// Diffusion de la position du curseur aux autres clients
-	broadcastToRoom(callId, cursorMessage, senderWs);
+  // Diffusion de la position du curseur aux autres clients
+  broadcastToRoom(callId, cursorMessage, senderWs);
 }
 
 /**
@@ -267,40 +245,34 @@ function handleCursorPosition(callId, message, senderWs) {
  * @param {WebSocket} excludeWs - Client à exclure de la diffusion (optionnel)
  */
 function broadcastToRoom(callId, message, excludeWs = null) {
-	const room = rooms.get(callId);
-	if (!room) {
-		console.warn(`⚠️ Room ${callId} introuvable pour broadcast`);
-		return;
-	}
+  const room = rooms.get(callId);
+  if (!room) {
+    console.warn(`Salle ${callId} introuvable pour la diffusion`);
+    return;
+  }
 
-	const messageStr = JSON.stringify(message);
-	let sentCount = 0;
-	let failedCount = 0;
+  const messageStr = JSON.stringify(message);
+  let sentCount = 0;
+  let failedCount = 0;
 
-	// Envoi du message à chaque client connecté
-	room.clients.forEach((client) => {
-		if (client !== excludeWs && client.readyState === 1) {
-			try {
-				client.send(messageStr);
-				sentCount++;
-			} catch (error) {
-				console.error("❌ Erreur envoi message:", error);
-				room.clients.delete(client);
-				failedCount++;
-			}
-		}
-	});
+  // Envoi du message à chaque client connecté
+  room.clients.forEach((client) => {
+    if (client !== excludeWs && client.readyState === 1) {
+      try {
+        client.send(messageStr);
+        sentCount++;
+      } catch (error) {
+        console.error("Erreur lors de l'envoi du message:", error);
+        room.clients.delete(client);
+        failedCount++;
+      }
+    }
+  });
 
-	if (sentCount > 0 || failedCount > 0) {
-		console.log(
-			`📡 Message diffusé: ${sentCount} succès, ${failedCount} échecs (room ${callId})`
-		);
-	}
-
-	// Nettoyage des clients déconnectés
-	if (failedCount > 0) {
-		cleanupRoom(callId);
-	}
+  // Nettoyage des clients déconnectés
+  if (failedCount > 0) {
+    cleanupRoom(callId);
+  }
 }
 
 /**
@@ -309,75 +281,53 @@ function broadcastToRoom(callId, message, excludeWs = null) {
  * @returns {http.Server} Serveur HTTP avec support WebSocket
  */
 export function setupWebSocketServer(app) {
-	const server = http.createServer(app);
+  const server = http.createServer(app);
 
-	// Création du serveur WebSocket monté sur le serveur HTTP
-	const wss = new WebSocketServer({
-		server,
-		path: "/ws", // Endpoint WebSocket accessible via ws://localhost:PORT/ws?callId=xxx
-	});
+  // Création du serveur WebSocket monté sur le serveur HTTP
+  const wss = new WebSocketServer({
+    server,
+    path: "/ws", // Endpoint WebSocket accessible via ws://localhost:PORT/ws?callId=xxx
+  });
 
-	// Gestionnaire de nouvelles connexions WebSocket
-	wss.on("connection", (ws, req) => {
-		try {
-			// Extraction du paramètre callId depuis l'URL
-			const queryParams = url.parse(req.url, true).query;
-			const callId = queryParams.callId;
+  // Gestionnaire de nouvelles connexions WebSocket
+  wss.on("connection", (ws, req) => {
+    try {
+      // Extraction du paramètre callId depuis l'URL
+      const queryParams = url.parse(req.url, true).query;
+      const callId = queryParams.callId;
 
-			if (!callId) {
-				console.error("❌ CallId manquant dans la connexion WebSocket");
-				ws.close(1008, "CallId requis");
-				return;
-			}
+      if (!callId) {
+        console.error("CallId manquant dans la connexion WebSocket");
+        ws.close(1008, "CallId requis");
+        return;
+      }
 
-			console.log(`🔌 Nouvelle connexion WebSocket pour room: ${callId}`);
-			handleConnection(ws, callId);
-		} catch (error) {
-			console.error("❌ Erreur setup connexion WebSocket:", error);
-			ws.close(1011, "Erreur serveur");
-		}
-	});
+      handleConnection(ws, callId);
+    } catch (error) {
+      console.error("Erreur lors de la configuration de la connexion WebSocket:", error);
+      ws.close(1011, "Erreur serveur");
+    }
+  });
 
-	// Gestionnaire d'erreurs globales du serveur WebSocket
-	wss.on("error", (error) => {
-		console.error("❌ Erreur WebSocketServer:", error);
-	});
+  // Gestionnaire d'erreurs globales du serveur WebSocket
+  wss.on("error", (error) => {
+    console.error("Erreur du WebSocketServer:", error);
+  });
 
-	// Tâche de maintenance périodique (30 secondes)
-	// Affiche les statistiques et nettoie les ressources orphelines
-	setInterval(() => {
-		if (rooms.size > 0) {
-			console.log(`📊 Rooms actives: ${rooms.size}`);
-			rooms.forEach((room, callId) => {
-				console.log(
-					`  - ${callId}: ${room.clients.size} client(s), ${room.content.length} chars`
-				);
+  // Tâche de maintenance périodique (30 secondes) pour nettoyer les ressources orphelines
+  setInterval(() => {
+    rooms.forEach((room, callId) => {
+      room.clients.forEach((client) => {
+        if (client.readyState !== 1) {
+          room.clients.delete(client);
+        }
+      });
 
-				// Suppression des clients avec connexions fermées
-				let cleanedClients = 0;
-				room.clients.forEach((client) => {
-					if (client.readyState !== 1) {
-						room.clients.delete(client);
-						cleanedClients++;
-					}
-				});
+      if (room.clients.size === 0) {
+        rooms.delete(callId);
+      }
+    });
+  }, 30000);
 
-				if (cleanedClients > 0) {
-					console.log(
-						`🧹 ${cleanedClients} clients fantômes supprimés de ${callId}`
-					);
-				}
-			});
-		}
-
-		// Suppression des salles complètement vides
-		rooms.forEach((room, callId) => {
-			if (room.clients.size === 0) {
-				rooms.delete(callId);
-				console.log(`🧹 Room vide supprimée: ${callId}`);
-			}
-		});
-	}, 30000);
-
-	return server;
+  return server;
 }
