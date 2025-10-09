@@ -90,14 +90,16 @@ const ChatPage = () => {
           <div className="w-full relative">
             {/* Bouton d'appel vidéo intégré */}
             <CallButton handleVideoCall={handleVideoCall} />
-            <Window>
-              {/* En-tête du canal avec informations des participants */}
-              <ChannelHeader />
-              {/* Liste des messages avec défilement automatique */}
-              <MessageList />
-              {/* Zone de saisie de nouveaux messages */}
-              <MessageInput focus />
-            </Window>
+            <div className="pt-16">
+              <Window>
+                {/* En-tête du canal avec informations des participants */}
+                <ChannelHeader />
+                {/* Liste des messages avec défilement automatique */}
+                <MessageList />
+                {/* Zone de saisie de nouveaux messages */}
+                <MessageInput focus />
+              </Window>
+            </div>
           </div>
           {/* Fil de discussion pour les réponses aux messages */}
           <Thread />

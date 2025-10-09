@@ -1,5 +1,16 @@
 import { Link } from "react-router-dom";
+
 import { LANGUAGE_TO_FLAG, PROGRAMMING_LANGUAGE_TO_ICON } from "../constants";
+import { capitalize } from "../lib/utils";
+
+const LANGUAGE_ALIASES = {
+  "c++": "c++",
+  "c#": "c#",
+  "f#": "f#",
+  "objective-c": "objective-c",
+  "objective c": "objective-c",
+  objc: "objective-c",
+};
 
 /**
  * Composant carte d'affichage d'un ami
@@ -15,18 +26,25 @@ const FriendCard = ({ friend }) => {
           <div className="avatar size-12">
             <img src={friend.profilePic} alt={friend.fullName} />
           </div>
-          <h3 className="font-semibold truncate">{friend.fullName}</h3>
+          <div className="min-w-0">
+            <h3 className="font-semibold truncate">{friend.fullName}</h3>
+            {friend.bio && (
+              <p className="text-xs text-base-content/70 line-clamp-2">
+                {friend.bio}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Badges de langues */}
         <div className="flex flex-wrap gap-1.5 mb-3">
           <span className="badge badge-secondary text-xs">
             {getLanguageFlag(friend.nativeLanguage)}
-            Langue parlée: {friend.nativeLanguage}
+            Langue parlée: {capitalize(friend.nativeLanguage)}
           </span>
           <span className="badge badge-outline text-xs">
             {getProgrammingLogo(friend.learningLanguage)}
-            Apprenant: {friend.learningLanguage}
+            Apprenant: {capitalize(friend.learningLanguage)}
           </span>
         </div>
 
@@ -71,35 +89,23 @@ export function getLanguageFlag(language) {
  * @returns {JSX.Element|null} Image du logo ou null si non trouvé
  */
 export function getProgrammingLogo(language) {
-  // Mapping des alias pour les cas spéciaux de nommage
-  const LANGUAGE_ALIASES = {
-    "c++": "c++",
-    "c#": "c#",
-    "f#": "f#",
-    "objective-c": "objective-c",
-    "objective c": "objective-c",
-    objc: "objective-c",
-  };
-
   if (!language) return null;
 
   let langLower = language.toLowerCase().trim();
-
-  // Application des alias si nécessaire
   if (LANGUAGE_ALIASES[langLower]) {
     langLower = LANGUAGE_ALIASES[langLower];
   }
 
   const logoUrl = PROGRAMMING_LANGUAGE_TO_ICON[langLower];
-  if (logoUrl) {
-    return (
-      <img
-        src={logoUrl}
-        alt={`${langLower} logo`}
-        className="h-3 mr-1 inline-block"
-      />
-    );
+  if (!logoUrl) {
+    return null;
   }
 
-  return null;
+  return (
+    <img
+      src={logoUrl}
+      alt={`${langLower} logo`}
+      className="h-3 mr-1 inline-block"
+    />
+  );
 }
