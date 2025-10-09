@@ -1,3 +1,5 @@
+import { useLocation } from "react-router-dom";
+
 import Sidebar from "./Sidebar";
 import Navbar from "./Navbar";
 
@@ -11,15 +13,25 @@ import Navbar from "./Navbar";
  * @param {boolean} showSidebar - Active le rendu de la navigation latérale.
  */
 const Layout = ({ children, showSidebar = false }) => {
+  const location = useLocation();
+  const isChatRoute = location.pathname?.startsWith("/chat");
+
   return (
     <div className="min-h-screen">
-      <div className="flex">
+      <div className="flex min-h-screen">
         {showSidebar && <Sidebar />}
 
         <div className="flex-1 flex flex-col">
           <Navbar />
 
-          <main className="flex-1 overflow-y-auto">{children}</main>
+          {/* La conversation occupe l'intégralité du viewport sans double scrollbar. */}
+          <main
+            className={`flex-1 ${
+              isChatRoute ? "overflow-hidden" : "overflow-y-auto"
+            }`}
+          >
+            {children}
+          </main>
         </div>
       </div>
     </div>

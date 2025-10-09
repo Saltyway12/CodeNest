@@ -34,8 +34,8 @@ const CallPage = () => {
   const { authUser, isLoading } = useAuthUser();
 
   // Récupération du token Stream pour l'authentification
-  const { data: tokenData } = useQuery({
-    queryKey: ["streamToken"],
+  const { data: tokenData, error: tokenError } = useQuery({
+    queryKey: ["streamToken", authUser?._id],
     queryFn: getStreamToken,
     enabled: !!authUser,
   });
@@ -46,7 +46,6 @@ const CallPage = () => {
       if (!tokenData?.token || !authUser || !callId) return;
 
       try {
-        console.log("Initializing Stream video client...");
         const user = {
           id: authUser._id,
           name: authUser.fullName,
@@ -63,7 +62,6 @@ const CallPage = () => {
         // Création et connexion à l'appel
         const callInstance = videoClient.call("default", callId);
         await callInstance.join({ create: true });
-        console.log("Joined call successfully");
 
         setClient(videoClient);
         setCall(callInstance);
@@ -77,6 +75,13 @@ const CallPage = () => {
 
     initCall();
   }, [tokenData, authUser, callId]);
+
+  useEffect(() => {
+    if (tokenError) {
+      console.error("Erreur lors de la récupération du token Stream Video:", tokenError);
+      toast.error("Le service d'appel vidéo est momentanément indisponible.");
+    }
+  }, [tokenError]);
 
   // Affichage du loader pendant l'initialisation
   if (isLoading || isConnecting) return <PageLoader />;
@@ -108,8 +113,11 @@ const CallContent = () => {
   const navigate = useNavigate();
   const [layout, setLayout] = useState("video-only"); // États : "video-only", "split", "code-only"
 
-  // Redirection automatique si l'utilisateur quitte l'appel
-  if (callingState === CallingState.LEFT) return navigate("/");
+  useEffect(() => {
+    if (callingState === CallingState.LEFT) {
+      navigate("/", { replace: true });
+    }
+  }, [callingState, navigate]);
 
   return (
     <div className="h-screen flex flex-col bg-gray-900 text-gray-100">
@@ -172,7 +180,9 @@ const CallContent = () => {
         {layout !== "video-only" && (
           <div
             className={`${
-              layout === "split" ? "w-2/3 border-l border-gray-700" : "w-full"
+              layout === "split"
+                ? "w-2/3 border-l border-gray-700"
+                : "w-full"
             } bg-gray-800`}
           >
             <div className="h-full p-4">

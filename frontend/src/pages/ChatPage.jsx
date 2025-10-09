@@ -25,10 +25,10 @@ import useAuthUser from "../hooks/useAuthUser";
 const ChatPage = () => {
   const { id: targetUserId } = useParams();
   const { authUser } = useAuthUser();
-  
+
   // Récupération du client global depuis le contexte
   const { chatClient } = useStreamChat();
-  
+
   const [channel, setChannel] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -38,8 +38,6 @@ const ChatPage = () => {
       if (!chatClient || !authUser) return;
 
       try {
-        console.log("Initialisation du canal...");
-
         // Génération d'un ID de canal unique et ordonné pour la conversation
         const channelId = [authUser._id, targetUserId].sort().join("-");
 
@@ -54,7 +52,9 @@ const ChatPage = () => {
         setChannel(currChannel);
       } catch (error) {
         console.error("Erreur d'initialisation du canal:", error);
-        toast.error("Impossible de se connecter au chat. Retentez un peu plus tard.");
+        toast.error(
+          "Impossible de se connecter au chat. Retentez un peu plus tard.",
+        );
       } finally {
         setLoading(false);
       }
@@ -84,17 +84,18 @@ const ChatPage = () => {
   if (loading || !chatClient || !channel) return <ChatLoader />;
 
   return (
-    <div className="h-[93vh]">
+    <div className="flex h-full flex-col">
       <Chat client={chatClient}>
         <Channel channel={channel}>
-          <div className="w-full relative">
+          {/* Conteneur principal dimensionné sur la hauteur disponible du layout. */}
+          <div className="relative flex h-full flex-1 flex-col">
             {/* Bouton d'appel vidéo intégré */}
             <CallButton handleVideoCall={handleVideoCall} />
-            <Window>
+            <Window className="flex-1 pt-20 flex flex-col">
               {/* En-tête du canal avec informations des participants */}
               <ChannelHeader />
               {/* Liste des messages avec défilement automatique */}
-              <MessageList />
+              <MessageList className="flex-1" />
               {/* Zone de saisie de nouveaux messages */}
               <MessageInput focus />
             </Window>

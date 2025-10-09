@@ -5,7 +5,7 @@ import LoginPage from "./pages/LoginPage.jsx";
 import NotificationsPage from "./pages/NotificationsPage.jsx";
 import CallPage from "./pages/CallPage.jsx";
 import ChatPage from "./pages/ChatPage.jsx";
-import OnborardingPage from "./pages/OnborardingPage.jsx";
+import OnboardingPage from "./pages/OnboardingPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
 import FeaturesPage from "./pages/FeaturesPage.jsx";
 
@@ -42,7 +42,9 @@ const App = () => {
                   <HomePage />
                 </Layout>
               ) : (
-                <Navigate to={!isAuthenticated ? "/connexion" : "/configuration-profil"} />
+                <Navigate
+                  to={!isAuthenticated ? "/connexion" : "/configuration-profil"}
+                />
               )
             }
           />
@@ -77,7 +79,9 @@ const App = () => {
                   <NotificationsPage />
                 </Layout>
               ) : (
-                <Navigate to={!isAuthenticated ? "/connexion" : "/configuration-profil"} />
+                <Navigate
+                  to={!isAuthenticated ? "/connexion" : "/configuration-profil"}
+                />
               )
             }
           />
@@ -88,7 +92,9 @@ const App = () => {
               isAuthenticated && isOnboarded ? (
                 <CallPage />
               ) : (
-                <Navigate to={!isAuthenticated ? "/connexion" : "/configuration-profil"} />
+                <Navigate
+                  to={!isAuthenticated ? "/connexion" : "/configuration-profil"}
+                />
               )
             }
           />
@@ -101,7 +107,9 @@ const App = () => {
                   <ChatPage />
                 </Layout>
               ) : (
-                <Navigate to={!isAuthenticated ? "/connexion" : "/configuration-profil"} />
+                <Navigate
+                  to={!isAuthenticated ? "/connexion" : "/configuration-profil"}
+                />
               )
             }
           />
@@ -114,7 +122,9 @@ const App = () => {
                   <FeaturesPage />
                 </Layout>
               ) : (
-                <Navigate to={!isAuthenticated ? "/connexion" : "/configuration-profil"} />
+                <Navigate
+                  to={!isAuthenticated ? "/connexion" : "/configuration-profil"}
+                />
               )
             }
           />
@@ -123,7 +133,11 @@ const App = () => {
             path="/configuration-profil"
             element={
               isAuthenticated ? (
-                !isOnboarded ? <OnborardingPage /> : <Navigate to="/" />
+                !isOnboarded ? (
+                  <OnboardingPage />
+                ) : (
+                  <Navigate to="/" />
+                )
               ) : (
                 <Navigate to="/connexion" />
               )

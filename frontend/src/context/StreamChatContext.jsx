@@ -20,31 +20,45 @@ export const StreamChatProvider = ({ children }) => {
   const { authUser } = useAuthUser();
 
   // Récupération du token Stream pour l'utilisateur courant
-  const { data: tokenData } = useQuery({
-    queryKey: ['streamToken'],
+  const { data: tokenData, error: tokenError } = useQuery({
+    queryKey: ['streamToken', authUser?._id],
     queryFn: getStreamToken,
     enabled: !!authUser,
   });
 
   // Création puis mise en cache du client Stream
   useEffect(() => {
-    if (!tokenData?.token || !authUser) {
-      return () => {
-        if (chatClientRef.current) {
-          chatClientRef.current.disconnectUser();
-          chatClientRef.current = null;
-          setChatClient(null);
-        }
-      };
+    if (!authUser || !tokenData?.token) {
+      if (chatClientRef.current) {
+        chatClientRef.current.disconnectUser();
+        chatClientRef.current = null;
+        setChatClient(null);
+      }
+      return undefined;
     }
 
-    let isCancelled = false;
-    let clientInstance;
+    if (!STREAM_API_KEY) {
+      console.error("Clé API Stream absente. Vérifiez la configuration d'environnement.");
+      return undefined;
+    }
+
+    let isMounted = true;
+    let nextClient;
 
     const initClient = async () => {
-      if (chatClientRef.current) return;
-
       try {
+        const currentClient = chatClientRef.current;
+
+        if (currentClient?.userID === authUser._id) {
+          setChatClient(currentClient);
+          return;
+        }
+
+        if (currentClient) {
+          await currentClient.disconnectUser();
+          chatClientRef.current = null;
+        }
+
         console.log('Initialisation du client Stream global...');
 
         const client = StreamChat.getInstance(STREAM_API_KEY);
@@ -58,38 +72,45 @@ export const StreamChatProvider = ({ children }) => {
           tokenData.token
         );
 
-        if (isCancelled) {
-          client.disconnectUser();
+        if (!isMounted) {
+          await client.disconnectUser();
           return;
         }
 
-        clientInstance = client;
+        nextClient = client;
         chatClientRef.current = client;
         setChatClient(client);
-        console.log('✅ Client Stream connecté');
+        console.log('Client Stream connecté');
       } catch (error) {
         console.error('Erreur initialisation Stream:', error);
+        toast.error("Impossible de se connecter au chat temps réel. Veuillez réessayer plus tard.");
       }
     };
 
     initClient();
 
-    // Déconnexion à la sortie du provider
     return () => {
-      isCancelled = true;
-      const client = clientInstance ?? chatClientRef.current;
+      isMounted = false;
 
-      if (client) {
-        client.disconnectUser();
+      if (nextClient) {
+        nextClient.disconnectUser();
       }
 
-      if (chatClientRef.current) {
+      if (chatClientRef.current && chatClientRef.current.userID === authUser._id) {
+        chatClientRef.current.disconnectUser();
         chatClientRef.current = null;
       }
 
-      setChatClient(null);
+      setChatClient((prev) => (prev && prev.userID === authUser._id ? null : prev));
     };
-  }, [tokenData, authUser]);
+  }, [authUser?._id, tokenData?.token]);
+
+  useEffect(() => {
+    if (tokenError) {
+      console.error('Erreur lors de la récupération du token Stream:', tokenError);
+      toast.error("Le service de messagerie est temporairement indisponible.");
+    }
+  }, [tokenError]);
 
   // Notification toast lors de la réception d'un message entrant
   useEffect(() => {
