@@ -17,6 +17,11 @@ const Output = ({ editorRef, language }) => {
 
   // Exécution du code via l'API externe
   const runCode = async () => {
+    if (!editorRef?.current) {
+      toast.error("Éditeur non initialisé. Réessayez dans un instant.");
+      return;
+    }
+
     const sourceCode = editorRef.current.getValue();
     if (!sourceCode) return;
 
@@ -26,7 +31,6 @@ const Output = ({ editorRef, language }) => {
       setOutput(result.output.split("\n"));
       result.stderr ? setIsError(true) : setIsError(false);
     } catch (error) {
-      console.log(error);
       toast.error(error.message || "Impossible d'exécuter le code");
     } finally {
       setIsLoading(false);
@@ -34,9 +38,9 @@ const Output = ({ editorRef, language }) => {
   };
 
   return (
-    <div className="w-1/2">
-      <p className="mb-2 text-lg">Output</p>
-      
+    <div className="w-full lg:w-1/2">
+      <p className="mb-2 text-lg">Résultat</p>
+
       {/* Bouton d'exécution */}
       <button
         className={`flex items-center gap-2 px-4 py-2 mb-4 border-2 border-green-500 text-green-500 rounded-md hover:bg-green-500 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
@@ -55,11 +59,9 @@ const Output = ({ editorRef, language }) => {
 
       {/* Zone d'affichage des résultats */}
       <div
-        className={`h-[75vh] p-2 border rounded border-solid ${
-          isError 
-            ? "text-red-400 border-red-500" 
-            : "text-white border-gray-600"
-        } bg-gray-900`}
+        className={`h-[60vh] lg:h-[75vh] p-3 border rounded border-solid ${
+          isError ? "text-red-400 border-red-500" : "text-white border-gray-600"
+        } bg-gray-900 overflow-y-auto`}
       >
         {output
           ? output.map((line, i) => (
@@ -67,7 +69,7 @@ const Output = ({ editorRef, language }) => {
                 {line}
               </p>
             ))
-          : 'Cliquez sur "Exécuter le Code" pour voir la sortie ici'}
+          : 'Cliquez sur "Exécuter le code" pour afficher le résultat ici.'}
       </div>
     </div>
   );
