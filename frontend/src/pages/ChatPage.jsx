@@ -84,23 +84,29 @@ const ChatPage = () => {
   if (loading || !chatClient || !channel) return <ChatLoader />;
 
   return (
-    <div className="h-[93vh]">
+    <div
+      className="flex flex-col supports-[min-height:100dvh]:min-h-[calc(100dvh-theme(spacing.24))] min-h-[calc(100vh-theme(spacing.24))] bg-base-200/40"
+    >
       <Chat client={chatClient}>
         <Channel channel={channel}>
-          <div className="w-full relative">
-            {/* Bouton d'appel vidéo intégré */}
-            <CallButton handleVideoCall={handleVideoCall} />
-            <Window>
-              {/* En-tête du canal avec informations des participants */}
-              <ChannelHeader />
-              {/* Liste des messages avec défilement automatique */}
-              <MessageList />
-              {/* Zone de saisie de nouveaux messages */}
-              <MessageInput focus />
-            </Window>
+          <div className="flex h-full w-full flex-1 flex-col overflow-hidden lg:flex-row">
+            <div className="flex h-full flex-1 flex-col">
+              {/* Bouton d'appel vidéo intégré */}
+              <CallButton handleVideoCall={handleVideoCall} />
+              <Window className="flex min-h-0 flex-1 flex-col">
+                {/* En-tête du canal avec informations des participants */}
+                <ChannelHeader />
+                {/* Liste des messages avec défilement automatique */}
+                <MessageList className="min-h-0 flex-1" />
+                {/* Zone de saisie de nouveaux messages */}
+                <div className="pb-[env(safe-area-inset-bottom,0px)]">
+                  <MessageInput focus />
+                </div>
+              </Window>
+            </div>
+            {/* Fil de discussion pour les réponses aux messages */}
+            <Thread className="hidden h-full w-full max-w-md lg:flex lg:flex-col lg:border-l lg:border-base-300" />
           </div>
-          {/* Fil de discussion pour les réponses aux messages */}
-          <Thread />
         </Channel>
       </Chat>
     </div>

@@ -82,15 +82,19 @@ const CallPage = () => {
   if (isLoading || isConnecting) return <PageLoader />;
 
   return (
-    <div className="h-screen flex flex-col">
+    <div
+      className="flex flex-col supports-[min-height:100dvh]:min-h-[calc(100dvh-theme(spacing.24))] min-h-[calc(100vh-theme(spacing.24))]"
+    >
       {client && call ? (
-        <StreamVideo client={client}>
-          <StreamCall call={call}>
-            <CallContent />
-          </StreamCall>
-        </StreamVideo>
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <StreamVideo client={client}>
+            <StreamCall call={call}>
+              <CallContent />
+            </StreamCall>
+          </StreamVideo>
+        </div>
       ) : (
-        <div className="flex items-center justify-center h-full">
+        <div className="flex flex-1 items-center justify-center">
           <p>Could not initialize call. Please refresh or try again later.</p>
         </div>
       )}
@@ -112,22 +116,22 @@ const CallContent = () => {
   if (callingState === CallingState.LEFT) return navigate("/");
 
   return (
-    <div className="h-screen flex flex-col bg-gray-900 text-gray-100">
+    <div className="flex min-h-0 flex-1 flex-col bg-gray-900 text-gray-100">
       {/* En-tête avec logo et contrôles de mise en page */}
-      <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
-        <div className="flex items-center space-x-4">
+      <div className="flex flex-col gap-4 border-b border-gray-700 bg-gray-800 p-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-4">
           <MessageSquareCode className="size-9 text-primary" />
-          <span className="text-3xl font-bold font-mono bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary tracking-wider">
+          <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text font-mono text-3xl font-bold text-transparent tracking-wider">
             CodeNest
           </span>
         </div>
 
         {/* Boutons de sélection du mode d'affichage */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setLayout("video-only")}
-            className={`btn btn-sm gap-2 ${layout === "video-only" ? "btn-primary" : "btn-ghost"}`}
+            className={`btn btn-sm w-full gap-2 sm:w-auto ${layout === "video-only" ? "btn-primary" : "btn-ghost"}`}
           >
             <Video className="h-4 w-4" />
             <span>Vidéo</span>
@@ -136,7 +140,7 @@ const CallContent = () => {
           <button
             type="button"
             onClick={() => setLayout("split")}
-            className={`btn btn-sm gap-2 ${layout === "split" ? "btn-primary" : "btn-ghost"}`}
+            className={`btn btn-sm w-full gap-2 sm:w-auto ${layout === "split" ? "btn-primary" : "btn-ghost"}`}
           >
             <PanelLeft className="h-4 w-4" />
             <span>Vue partagée</span>
@@ -145,7 +149,7 @@ const CallContent = () => {
           <button
             type="button"
             onClick={() => setLayout("code-only")}
-            className={`btn btn-sm gap-2 ${layout === "code-only" ? "btn-primary" : "btn-ghost"}`}
+            className={`btn btn-sm w-full gap-2 sm:w-auto ${layout === "code-only" ? "btn-primary" : "btn-ghost"}`}
           >
             <Code className="h-4 w-4" />
             <span>Code</span>
@@ -154,13 +158,15 @@ const CallContent = () => {
       </div>
 
       {/* Zone de contenu principal avec disposition dynamique */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
         {/* Section vidéo - masquée en mode "code uniquement" */}
         {layout !== "code-only" && (
           <div
             className={`${
-              layout === "split" ? "w-1/3" : "w-full"
-            } bg-gray-900`}
+              layout === "split"
+                ? "border-b border-gray-800 bg-gray-900 md:w-1/3 md:flex-none md:border-b-0 md:border-r md:border-gray-700"
+                : "bg-gray-900"
+            } flex-1 min-h-[240px]`}
           >
             <StreamTheme>
               <SpeakerLayout />
@@ -172,10 +178,12 @@ const CallContent = () => {
         {layout !== "video-only" && (
           <div
             className={`${
-              layout === "split" ? "w-2/3 border-l border-gray-700" : "w-full"
-            } bg-gray-800`}
+              layout === "split"
+                ? "border-t border-gray-800 bg-gray-800 md:w-2/3 md:flex-none md:border-t-0 md:border-l md:border-gray-700"
+                : "bg-gray-800"
+            } flex-1 min-h-[240px]`}
           >
-            <div className="h-full p-4">
+            <div className="h-full p-3 sm:p-4">
               <CodeEditor />
             </div>
           </div>
@@ -183,7 +191,7 @@ const CallContent = () => {
       </div>
 
       {/* Barre de contrôles d'appel en bas */}
-      <div className="p-4 bg-gray-800 border-t border-gray-700">
+      <div className="border-t border-gray-700 bg-gray-800 p-4 pb-[calc(theme(spacing.4)+env(safe-area-inset-bottom,0px))]">
         <StreamTheme>
           <CallControls />
         </StreamTheme>
