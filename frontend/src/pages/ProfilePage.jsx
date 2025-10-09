@@ -71,7 +71,9 @@ const ProfilePage = () => {
     mutationFn: deleteAccount,
     onSuccess: async () => {
       toast.success("Votre compte a été supprimé.");
-      queryClient.clear();
+      await queryClient.cancelQueries({ queryKey: ["authUser"] });
+      queryClient.setQueryData(["authUser"], { success: false, user: null });
+      await queryClient.invalidateQueries({ queryKey: ["authUser"] });
       navigate("/connexion", { replace: true });
     },
     onError: (error) => {
