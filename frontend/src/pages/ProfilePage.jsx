@@ -69,7 +69,7 @@ const ProfilePage = () => {
 
   const { mutate: deleteAccountMutation, isPending: isDeletingAccount } = useMutation({
     mutationFn: deleteAccount,
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Votre compte a été supprimé.");
       queryClient.clear();
       navigate("/connexion", { replace: true });
