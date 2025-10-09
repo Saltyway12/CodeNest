@@ -27,9 +27,31 @@ export const upsertStreamUser = async (userData) => {
         } catch (error) {
                 console.error(
                         "Erreur lors de la création/mise à jour de l'utilisateur Stream :",
-			error
-		);
-	}
+                        error
+                );
+        }
+};
+
+/**
+ * Supprime l'utilisateur côté Stream Chat afin d'éviter les comptes orphelins.
+ * En cas d'échec, l'erreur est simplement journalisée pour ne pas bloquer
+ * la suppression locale du compte.
+ *
+ * @param {string|ObjectId} userId - Identifiant de l'utilisateur à supprimer
+ */
+export const deleteStreamUser = async (userId) => {
+        try {
+                const userIdStr = userId.toString();
+                await streamClient.deleteUser(userIdStr, {
+                        mark_messages_deleted: true,
+                        hard_delete: true,
+                });
+        } catch (error) {
+                console.error(
+                        "Erreur lors de la suppression de l'utilisateur Stream :",
+                        error
+                );
+        }
 };
 
 /**

@@ -1,12 +1,13 @@
 import express from "express";
 import { protectRoute } from "../middleware/auth.middleware.js";
 import {
-	acceptFriendRequest,
-	getFriendRequests,
-	getMyFriends,
-	getOutgoingFriendReqs,
-	getRecommendedUsers,
-	sendFriendRequest,
+        acceptFriendRequest,
+        deleteCurrentUser,
+        getFriendRequests,
+        getMyFriends,
+        getOutgoingFriendReqs,
+        getRecommendedUsers,
+        sendFriendRequest,
 } from "../controllers/user.controller.js";
 
 // Création du routeur Express pour les routes liées aux utilisateurs
@@ -41,6 +42,10 @@ router.get("/friend-requests", getFriendRequests);
 // Route GET pour récupérer les demandes d'amis envoyées (en attente de réponse)
 // Endpoint: GET /api/users/outgoing-friend-requests
 router.get("/outgoing-friend-requests", getOutgoingFriendReqs);
+
+// Route DELETE pour supprimer le compte de l'utilisateur connecté
+// Endpoint: DELETE /api/users/moi
+router.delete("/moi", deleteCurrentUser);
 
 // Export du routeur pour intégration dans le serveur principal
 export default router;
