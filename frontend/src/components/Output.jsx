@@ -38,8 +38,8 @@ const Output = ({ editorRef, language }) => {
   };
 
   return (
-    <div className="w-1/2">
-      <p className="mb-2 text-lg">Output</p>
+    <div className="w-full lg:w-1/2">
+      <p className="mb-2 text-lg">Résultat</p>
 
       {/* Bouton d'exécution */}
       <button
@@ -59,9 +59,9 @@ const Output = ({ editorRef, language }) => {
 
       {/* Zone d'affichage des résultats */}
       <div
-        className={`h-[75vh] p-2 border rounded border-solid ${
+        className={`h-[60vh] lg:h-[75vh] p-3 border rounded border-solid ${
           isError ? "text-red-400 border-red-500" : "text-white border-gray-600"
-        } bg-gray-900`}
+        } bg-gray-900 overflow-y-auto`}
       >
         {output
           ? output.map((line, i) => (
@@ -69,7 +69,7 @@ const Output = ({ editorRef, language }) => {
                 {line}
               </p>
             ))
-          : 'Cliquez sur "Exécuter le Code" pour voir la sortie ici'}
+          : 'Cliquez sur "Exécuter le code" pour afficher le résultat ici.'}
       </div>
     </div>
   );

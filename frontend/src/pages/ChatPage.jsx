@@ -91,14 +91,16 @@ const ChatPage = () => {
           <div className="relative flex h-full flex-1 flex-col">
             {/* Bouton d'appel vidéo intégré */}
             <CallButton handleVideoCall={handleVideoCall} />
-            <Window className="flex-1 pt-20 flex flex-col">
-              {/* En-tête du canal avec informations des participants */}
-              <ChannelHeader />
-              {/* Liste des messages avec défilement automatique */}
-              <MessageList className="flex-1" />
-              {/* Zone de saisie de nouveaux messages */}
-              <MessageInput focus />
-            </Window>
+            <div className="pt-16">
+              <Window>
+                {/* En-tête du canal avec informations des participants */}
+                <ChannelHeader />
+                {/* Liste des messages avec défilement automatique */}
+                <MessageList />
+                {/* Zone de saisie de nouveaux messages */}
+                <MessageInput focus />
+              </Window>
+            </div>
           </div>
           {/* Fil de discussion pour les réponses aux messages */}
           <Thread />

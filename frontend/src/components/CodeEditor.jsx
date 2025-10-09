@@ -275,7 +275,7 @@ const CodeEditor = () => {
                 onClick={reconnect}
                 className="px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition-colors"
               >
-                Reconnecter
+                Relancer la connexion
               </button>
             )}
           </div>
@@ -294,8 +294,8 @@ const CodeEditor = () => {
       </div>
 
       {/* Layout principal avec éditeur et sortie */}
-      <div className="flex gap-4">
-        <div className="w-1/2">
+      <div className="flex flex-col gap-6 lg:flex-row">
+        <div className="w-full lg:w-1/2">
           <LanguageSelector language={language} onSelect={onSelect} />
           <Editor
             options={{
@@ -317,7 +317,7 @@ const CodeEditor = () => {
             onMount={onMount}
           />
         </div>
-        <div className="w-1/2">
+        <div className="w-full lg:w-1/2">
           <Output editorRef={editorRef} language={language} />
         </div>
       </div>
