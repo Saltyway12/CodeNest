@@ -46,7 +46,6 @@ const CallPage = () => {
       if (!tokenData?.token || !authUser || !callId) return;
 
       try {
-        console.log("Initializing Stream video client...");
         const user = {
           id: authUser._id,
           name: authUser.fullName,
@@ -63,7 +62,6 @@ const CallPage = () => {
         // Création et connexion à l'appel
         const callInstance = videoClient.call("default", callId);
         await callInstance.join({ create: true });
-        console.log("Joined call successfully");
 
         setClient(videoClient);
         setCall(callInstance);
@@ -108,14 +106,17 @@ const CallContent = () => {
   const navigate = useNavigate();
   const [layout, setLayout] = useState("video-only"); // États : "video-only", "split", "code-only"
 
-  // Redirection automatique si l'utilisateur quitte l'appel
-  if (callingState === CallingState.LEFT) return navigate("/");
+  useEffect(() => {
+    if (callingState === CallingState.LEFT) {
+      navigate("/", { replace: true });
+    }
+  }, [callingState, navigate]);
 
   return (
-    <div className="h-screen flex flex-col bg-gray-900 text-gray-100">
+    <div className="min-h-screen flex flex-col bg-gray-900 text-gray-100">
       {/* En-tête avec logo et contrôles de mise en page */}
-      <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
-        <div className="flex items-center space-x-4">
+      <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-gray-800 border-b border-gray-700">
+        <div className="flex items-center gap-3">
           <MessageSquareCode className="size-9 text-primary" />
           <span className="text-3xl font-bold font-mono bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary tracking-wider">
             CodeNest
@@ -123,7 +124,7 @@ const CallContent = () => {
         </div>
 
         {/* Boutons de sélection du mode d'affichage */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
             onClick={() => setLayout("video-only")}
@@ -154,12 +155,12 @@ const CallContent = () => {
       </div>
 
       {/* Zone de contenu principal avec disposition dynamique */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* Section vidéo - masquée en mode "code uniquement" */}
         {layout !== "code-only" && (
           <div
             className={`${
-              layout === "split" ? "w-1/3" : "w-full"
+              layout === "split" ? "lg:w-1/3 w-full" : "w-full"
             } bg-gray-900`}
           >
             <StreamTheme>
@@ -172,7 +173,9 @@ const CallContent = () => {
         {layout !== "video-only" && (
           <div
             className={`${
-              layout === "split" ? "w-2/3 border-l border-gray-700" : "w-full"
+              layout === "split"
+                ? "lg:w-2/3 border-t border-gray-700 lg:border-t-0 lg:border-l"
+                : "w-full"
             } bg-gray-800`}
           >
             <div className="h-full p-4">

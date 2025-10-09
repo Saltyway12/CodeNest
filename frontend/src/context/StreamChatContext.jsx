@@ -66,7 +66,7 @@ export const StreamChatProvider = ({ children }) => {
         clientInstance = client;
         chatClientRef.current = client;
         setChatClient(client);
-        console.log('✅ Client Stream connecté');
+        console.log('Client Stream connecté');
       } catch (error) {
         console.error('Erreur initialisation Stream:', error);
       }

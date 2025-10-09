@@ -2,7 +2,7 @@
 
 À la manière d’un réseau social, CodeNest permet de découvrir des utilisateurs qui apprennent le même langage que vous, d’entrer en contact avec eux, d’échanger, d’apprendre et de coder ensemble.
 
-🌐 **Lien du site** : [https://codenest-go66.onrender.com](https://codenest-go66.onrender.com)
+**Lien du site** : [https://codenest-go66.onrender.com](https://codenest-go66.onrender.com)
 
 ---
 
@@ -68,7 +68,7 @@ npm run dev
 
 ### Frontend
 
-- `src/pages/OnborardingPage.jsx` : Page de configuration initiale du profil utilisateur (formulaire dynamique, génération d’avatar, validation et mutation via React Query).
+- `src/pages/OnboardingPage.jsx` : Page de configuration initiale du profil utilisateur (formulaire dynamique, génération d’avatar, validation et mutation via React Query).
 - `src/components/ThemeSelector.jsx` : Sélecteur de thème visuel.
 - `src/components/Output.jsx` : Exécution et affichage des résultats de code via l’API Piston.
 - `src/pages/CallPage.jsx` : Gestion de l’appel vidéo, partage d’écran, éditeur collaboratif intégré.

@@ -1,10 +1,16 @@
 import { useMemo, useState } from "react";
-import useAuthUser from "../hooks/useAuthUser";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-
 import toast from "react-hot-toast";
+import {
+  CameraIcon,
+  LoaderIcon,
+  MapPinIcon,
+  SaveIcon,
+  ShuffleIcon,
+} from "lucide-react";
+
+import useAuthUser from "../hooks/useAuthUser";
 import { completeOnboarding } from "../lib/api";
-import { CameraIcon, LoaderIcon, MapPinIcon, SaveIcon, ShuffleIcon } from "lucide-react";
 import { LANGUAGES, PROGRAMMING_LANGUAGES } from "../constants";
 
 /**
@@ -12,10 +18,9 @@ import { LANGUAGES, PROGRAMMING_LANGUAGES } from "../constants";
  * Formulaire obligatoire après inscription pour compléter les informations
  * Génération d'avatar aléatoire et validation des champs requis
  */
-const OnborardingPage = () => {
-  
+const OnboardingPage = () => {
   const { authUser } = useAuthUser();
-  const queryClient= useQueryClient();
+  const queryClient = useQueryClient();
 
   // État du formulaire avec données utilisateur existantes comme valeurs par défaut
   const [formState, setFormState] = useState({
@@ -29,13 +34,19 @@ const OnborardingPage = () => {
   const [errors, setErrors] = useState({});
 
   const sortedLanguages = useMemo(
-    () => [...LANGUAGES].sort((a, b) => a.localeCompare(b, "fr", { sensitivity: "base" })),
-    []
+    () =>
+      [...LANGUAGES].sort((a, b) =>
+        a.localeCompare(b, "fr", { sensitivity: "base" }),
+      ),
+    [],
   );
 
   const sortedProgrammingLanguages = useMemo(
-    () => [...PROGRAMMING_LANGUAGES].sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" })),
-    []
+    () =>
+      [...PROGRAMMING_LANGUAGES].sort((a, b) =>
+        a.localeCompare(b, "en", { sensitivity: "base" }),
+      ),
+    [],
   );
 
   const isFormValid =
@@ -54,8 +65,11 @@ const OnborardingPage = () => {
       // Invalidation du cache pour forcer la mise à jour des données utilisateur
       queryClient.invalidateQueries({ queryKey: ["authUser"] });
     },
-    onError:(error)=> {
-      toast.error(error?.response?.data?.message || "Impossible d'enregistrer votre profil pour le moment.");
+    onError: (error) => {
+      toast.error(
+        error?.response?.data?.message ||
+          "Impossible d'enregistrer votre profil pour le moment.",
+      );
     },
   });
 
@@ -72,7 +86,8 @@ const OnborardingPage = () => {
     }
 
     if (formState.bio.trim().length < 10) {
-      validationErrors.bio = "Ajoutez une bio d'au moins 10 caractères pour mieux vous présenter.";
+      validationErrors.bio =
+        "Ajoutez une bio d'au moins 10 caractères pour mieux vous présenter.";
     }
 
     if (!formState.nativeLanguage) {
@@ -80,7 +95,8 @@ const OnborardingPage = () => {
     }
 
     if (!formState.learningLanguage) {
-      validationErrors.learningLanguage = "Sélectionnez votre langage en apprentissage.";
+      validationErrors.learningLanguage =
+        "Sélectionnez votre langage en apprentissage.";
     }
 
     if (!formState.location.trim()) {
@@ -88,7 +104,8 @@ const OnborardingPage = () => {
     }
 
     if (!formState.profilePic) {
-      validationErrors.profilePic = "Ajoutez une photo de profil pour être reconnu par la communauté.";
+      validationErrors.profilePic =
+        "Ajoutez une photo de profil pour être reconnu par la communauté.";
     }
 
     setErrors(validationErrors);
@@ -98,7 +115,7 @@ const OnborardingPage = () => {
     }
 
     onboardingMutation(formState);
-  }
+  };
 
   /**
    * Générateur d'avatar aléatoire
@@ -109,6 +126,7 @@ const OnborardingPage = () => {
     const randomAvatar = `https://avatar.iran.liara.run/public/${idx}.png`;
 
     setFormState({ ...formState, profilePic: randomAvatar });
+    setErrors((prev) => ({ ...prev, profilePic: undefined }));
     toast.success("Nouvel avatar généré !");
   };
 
@@ -116,12 +134,16 @@ const OnborardingPage = () => {
     <div className="min-h-screen bg-base-100 flex items-center justify-center p-4">
       <div className="card bg-base-200 w-full max-w-3xl shadow-xl">
         <div className="card-body p-6 sm:p-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-center mb-4">Complétez votre profil</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-center mb-4">
+            Complétez votre profil
+          </h1>
           <div className="alert alert-info mb-6" role="status">
             <div>
               <span className="font-semibold">Avant de collaborer</span>
               <p className="text-sm opacity-80 mt-1">
-                Ce dernier pas nous permet d’adapter l’expérience et de débloquer l’accès à l’accueil, au chat et à l’éditeur collaboratif.
+                Ce dernier pas nous permet d’adapter l’expérience et de
+                débloquer l’accès à l’accueil, au chat et à l’éditeur
+                collaboratif.
               </p>
             </div>
           </div>
@@ -152,7 +174,11 @@ const OnborardingPage = () => {
 
               {/* Bouton de génération d'avatar aléatoire */}
               <div className="flex items-center gap-2">
-                <button type="button" onClick={handleRandomAvatar} className="btn btn-accent">
+                <button
+                  type="button"
+                  onClick={handleRandomAvatar}
+                  className="btn btn-accent"
+                >
                   <ShuffleIcon className="size-4 mr-2" />
                   Générer un avatar aléatoire
                 </button>
@@ -162,7 +188,12 @@ const OnborardingPage = () => {
             {/* Champ nom d'utilisateur */}
             <div className="form-control">
               <label className="label">
-                <span className="label-text font-medium">Nom d'utilisateur <span className="text-error" aria-hidden="true">*</span></span>
+                <span className="label-text font-medium">
+                  Nom d'utilisateur{" "}
+                  <span className="text-error" aria-hidden="true">
+                    *
+                  </span>
+                </span>
               </label>
               <input
                 type="text"
@@ -187,7 +218,12 @@ const OnborardingPage = () => {
             {/* Zone de texte pour la biographie */}
             <div className="form-control">
               <label className="label">
-                <span className="label-text font-medium">Bio <span className="text-error" aria-hidden="true">*</span></span>
+                <span className="label-text font-medium">
+                  Bio{" "}
+                  <span className="text-error" aria-hidden="true">
+                    *
+                  </span>
+                </span>
               </label>
               <textarea
                 name="bio"
@@ -212,17 +248,28 @@ const OnborardingPage = () => {
               {/* Langue native parlée */}
               <div className="form-control">
                 <label className="label">
-                  <span className="label-text font-medium">Langue parlée <span className="text-error" aria-hidden="true">*</span></span>
+                  <span className="label-text font-medium">
+                    Langue parlée{" "}
+                    <span className="text-error" aria-hidden="true">
+                      *
+                    </span>
+                  </span>
                 </label>
                 <select
                   name="nativeLanguage"
                   value={formState.nativeLanguage}
                   onChange={(e) => {
-                    setFormState({ ...formState, nativeLanguage: e.target.value });
-                    setErrors((prev) => ({ ...prev, nativeLanguage: undefined }));
+                    setFormState({
+                      ...formState,
+                      nativeLanguage: e.target.value,
+                    });
+                    setErrors((prev) => ({
+                      ...prev,
+                      nativeLanguage: undefined,
+                    }));
                   }}
                   className={`select select-bordered w-full ${errors.nativeLanguage ? "select-error" : ""}`}
-                  >
+                >
                   <option value="">Choisissez votre langue</option>
                   {sortedLanguages.map((lang) => (
                     <option key={`native-${lang}`} value={lang.toLowerCase()}>
@@ -240,14 +287,25 @@ const OnborardingPage = () => {
               {/* Langage de programmation en apprentissage */}
               <div className="form-control">
                 <label className="label">
-                  <span className="label-text font-medium">Langage en apprentissage <span className="text-error" aria-hidden="true">*</span></span>
+                  <span className="label-text font-medium">
+                    Langage en apprentissage{" "}
+                    <span className="text-error" aria-hidden="true">
+                      *
+                    </span>
+                  </span>
                 </label>
                 <select
                   name="learningLanguage"
                   value={formState.learningLanguage}
                   onChange={(e) => {
-                    setFormState({ ...formState, learningLanguage: e.target.value });
-                    setErrors((prev) => ({ ...prev, learningLanguage: undefined }));
+                    setFormState({
+                      ...formState,
+                      learningLanguage: e.target.value,
+                    });
+                    setErrors((prev) => ({
+                      ...prev,
+                      learningLanguage: undefined,
+                    }));
                   }}
                   className={`select select-bordered w-full ${errors.learningLanguage ? "select-error" : ""}`}
                 >
@@ -269,7 +327,12 @@ const OnborardingPage = () => {
             {/* Champ de localisation avec icône */}
             <div className="form-control">
               <label className="label">
-                <span className="label-text font-medium">Localisation <span className="text-error" aria-hidden="true">*</span></span>
+                <span className="label-text font-medium">
+                  Localisation{" "}
+                  <span className="text-error" aria-hidden="true">
+                    *
+                  </span>
+                </span>
               </label>
               <div className="relative">
                 <MapPinIcon className="absolute top-1/2 transform -translate-y-1/2 left-3 size-5 text-base-content opacity-70" />
@@ -295,26 +358,28 @@ const OnborardingPage = () => {
             </div>
 
             {/* Bouton de soumission avec état de chargement */}
-            <button className="btn btn-primary w-full" disabled={!isFormValid || isPending} type="submit" >
-              {!isPending?(
+            <button
+              className="btn btn-primary w-full"
+              disabled={!isFormValid || isPending}
+              type="submit"
+            >
+              {!isPending ? (
                 <>
                   <SaveIcon className="size-5 mr-2" />
                   Enregistrer et continuer
                 </>
               ) : (
                 <>
-                    <LoaderIcon className="animate-spin size-5 mr-2" />
-                    Enregistrement du profil...
+                  <LoaderIcon className="animate-spin size-5 mr-2" />
+                  Enregistrement du profil...
                 </>
               )}
             </button>
           </form>
-
         </div>
-
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default OnborardingPage;
+export default OnboardingPage;
