@@ -1,5 +1,6 @@
 import User from "../models/User.js";
 import FriendRequest from "../models/FriendRequest.js";
+import { deleteStreamUser } from "../lib/stream.js";
 
 /**
  * Contrôleur de recommandation d'utilisateurs
@@ -184,18 +185,58 @@ export async function getFriendRequests(req, res) {
  * avec informations des destinataires
  */
 export async function getOutgoingFriendReqs(req, res) {
-	try {
-		const outgoingRequests = await FriendRequest.find({
-			sender: req.user.id,
-			status: "pending",
-		}).populate(
-			"recipient",
-			"fullName profilePic nativeLanguage learningLanguage"
-		);
+        try {
+                const outgoingRequests = await FriendRequest.find({
+                        sender: req.user.id,
+                        status: "pending",
+                }).populate(
+                        "recipient",
+                        "fullName profilePic nativeLanguage learningLanguage"
+                );
 
-		res.status(200).json(outgoingRequests);
-	} catch (error) {
-		console.log("Erreur dans getOutgoingFriendReqs :", error.message);
-		res.status(500).json({ message: "Erreur interne du serveur" });
-	}
+                res.status(200).json(outgoingRequests);
+        } catch (error) {
+                console.log("Erreur dans getOutgoingFriendReqs :", error.message);
+                res.status(500).json({ message: "Erreur interne du serveur" });
+        }
+}
+
+/**
+ * Supprime le compte de l'utilisateur connecté ainsi que ses dépendances.
+ * Nettoie les demandes d'amis associées, retire le profil des listes d'amis et
+ * révoque le compte côté Stream Chat avant de révoquer la session.
+ */
+export async function deleteCurrentUser(req, res) {
+        try {
+                const userId = req.user.id;
+
+                // Supprimer toutes les demandes d'amis liées à l'utilisateur.
+                await FriendRequest.deleteMany({
+                        $or: [{ sender: userId }, { recipient: userId }],
+                });
+
+                // Retirer l'utilisateur des listes d'amis existantes.
+                await User.updateMany(
+                        { friends: userId },
+                        { $pull: { friends: userId } }
+                );
+
+                // Supprimer le document utilisateur principal.
+                const deletedUser = await User.findByIdAndDelete(userId);
+
+                if (!deletedUser) {
+                        return res.status(404).json({ message: "Utilisateur introuvable" });
+                }
+
+                // Tentative de suppression côté Stream Chat (non bloquante).
+                await deleteStreamUser(userId);
+
+                // Invalidation de la session côté client.
+                res.clearCookie("jwt");
+
+                res.status(200).json({ message: "Compte supprimé avec succès" });
+        } catch (error) {
+                console.error("Erreur dans deleteCurrentUser :", error.message);
+                res.status(500).json({ message: "Erreur interne du serveur" });
+        }
 }

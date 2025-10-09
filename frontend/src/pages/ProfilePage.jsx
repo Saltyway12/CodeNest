@@ -3,8 +3,15 @@ import { useNavigate } from "react-router-dom";
 import useAuthUser from "../hooks/useAuthUser";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { completeOnboarding } from "../lib/api";
-import { CameraIcon, LoaderIcon, MapPinIcon, SaveIcon, ShuffleIcon } from "lucide-react";
+import { completeOnboarding, deleteAccount } from "../lib/api";
+import {
+  CameraIcon,
+  LoaderIcon,
+  MapPinIcon,
+  SaveIcon,
+  ShuffleIcon,
+  Trash2Icon,
+} from "lucide-react";
 import { LANGUAGES, PROGRAMMING_LANGUAGES } from "../constants";
 
 /**
@@ -57,6 +64,18 @@ const ProfilePage = () => {
     },
     onError: (error) => {
       toast.error(error?.response?.data?.message || "Impossible de mettre à jour votre profil.");
+    },
+  });
+
+  const { mutate: deleteAccountMutation, isPending: isDeletingAccount } = useMutation({
+    mutationFn: deleteAccount,
+    onSuccess: () => {
+      toast.success("Votre compte a été supprimé.");
+      queryClient.clear();
+      navigate("/connexion");
+    },
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Impossible de supprimer votre compte.");
     },
   });
 
@@ -113,6 +132,16 @@ const ProfilePage = () => {
     setFormState({ ...formState, profilePic: randomAvatar });
     setErrors((prev) => ({ ...prev, profilePic: undefined }));
     toast.success("Nouvel avatar généré !");
+  };
+
+  const handleDeleteAccount = () => {
+    const confirmed = window.confirm(
+      "Cette action est irréversible. Voulez-vous vraiment supprimer votre compte ?"
+    );
+
+    if (!confirmed) return;
+
+    deleteAccountMutation();
   };
 
   return (
@@ -323,6 +352,33 @@ const ProfilePage = () => {
               </button>
             </div>
           </form>
+
+          <div className="mt-10 border-t border-base-300 pt-6">
+            <h2 className="text-lg font-semibold text-error">Zone sensible</h2>
+            <p className="text-sm text-base-content/70 mt-1">
+              La suppression de votre compte est définitive et entraînera la perte de vos données et
+              connexions.
+            </p>
+
+            <button
+              type="button"
+              onClick={handleDeleteAccount}
+              className="btn btn-error mt-4"
+              disabled={isDeletingAccount}
+            >
+              {isDeletingAccount ? (
+                <>
+                  <LoaderIcon className="animate-spin size-5 mr-2" />
+                  Suppression...
+                </>
+              ) : (
+                <>
+                  <Trash2Icon className="size-5 mr-2" />
+                  Supprimer mon compte
+                </>
+              )}
+            </button>
+          </div>
 
         </div>
 
