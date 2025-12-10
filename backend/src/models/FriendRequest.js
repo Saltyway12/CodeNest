@@ -1,35 +1,55 @@
+/**
+ * ---------------------------------------------------------
+ *  FriendRequest Model (Final Professional Version)
+ * ---------------------------------------------------------
+ *  FR : Représente une demande d'ami entre deux utilisateurs.
+ *       - Empêche les doublons via index unique
+ *       - Supporte "pending", "accepted" et "rejected"
+ *       - timestamps pour suivi temporel
+ *
+ *  EN : Represents a friend request between two users.
+ *       - Prevents duplicates via unique index
+ *       - Supports "pending", "accepted" and "rejected"
+ *       - timestamps for chronological tracking
+ * ---------------------------------------------------------
+ */
+
 import mongoose from "mongoose";
 
-// Définition du schéma MongoDB pour le modèle FriendRequest
-// Gère les demandes d'amitié entre utilisateurs
 const friendRequestSchema = new mongoose.Schema(
 	{
-		// Référence vers l'utilisateur expéditeur de la demande
 		sender: {
 			type: mongoose.Schema.Types.ObjectId,
-			ref: "User", // Référence au modèle User pour les requêtes populate
-			required: true, // Expéditeur obligatoire
+			ref: "User",
+			required: true,
 		},
-		// Référence vers l'utilisateur destinataire de la demande
+
 		recipient: {
 			type: mongoose.Schema.Types.ObjectId,
-			ref: "User", // Référence au modèle User pour les requêtes populate
-			required: true, // Destinataire obligatoire
+			ref: "User",
+			required: true,
 		},
-		// Statut actuel de la demande d'amitié
+
 		status: {
 			type: String,
-			enum: ["pending", "accepted"], // Valeurs autorisées uniquement
-			default: "pending", // Statut initial par défaut
+			enum: ["pending", "accepted", "rejected"],
+			default: "pending",
 		},
 	},
-	{
-		timestamps: true, // Ajout automatique des champs createdAt et updatedAt
-	}
+	{ timestamps: true }
 );
 
-// Création du modèle Mongoose pour les opérations CRUD sur les demandes d'amitié
-const FriendRequest = mongoose.model("FriendRequest", friendRequestSchema);
+/* ---------------------------------------------------------
+ *  Unique Request Constraint
+ * ---------------------------------------------------------
+ *  FR : Empêche l'envoi de plusieurs demandes identiques.
+ *       Cela évite les doublons dans la base de données.
+ *
+ *  EN : Prevents multiple identical requests from being created.
+ *       Ensures database integrity and avoids duplicates.
+ * --------------------------------------------------------- */
 
-// Export du modèle pour utilisation dans les contrôleurs et services
+friendRequestSchema.index({ sender: 1, recipient: 1 }, { unique: true });
+
+const FriendRequest = mongoose.model("FriendRequest", friendRequestSchema);
 export default FriendRequest;
